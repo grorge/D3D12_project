@@ -6,6 +6,8 @@
 #define SCREEN_HEIGHT 480
 
 #define NUM_SWAP_BUFFERS 2
+#define NUM_CONST_BUFFERS 2
+#define NUM_CONST_BUFFERS 2
 
 class Renderer
 {
@@ -60,7 +62,8 @@ private:
 	ID3D12PipelineState*		pipeLineState = nullptr;
 	
 	ID3D12DescriptorHeap*		descriptorHeap[NUM_SWAP_BUFFERS] = {};
-	ID3D12Resource1*			constantBufferResource[NUM_SWAP_BUFFERS] = {};
+	ID3D12DescriptorHeap*		descriptorHeapConstBuffers = {};
+	ID3D12Resource1*			constantBufferResource[NUM_CONST_BUFFERS] = {};
 
 
 	//-----------------------
