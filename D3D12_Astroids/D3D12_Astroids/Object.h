@@ -14,7 +14,7 @@ public:
 	~Object();
 
 	D3D12_VERTEX_BUFFER_VIEW GETVertexView() { return this->vertexBufferView; };
-	ConstantBuffer GETConstBufferData() { return this->constantBufferCPU; };
+	ConstantBuffer GETColorBufferData() { return this->color; };
 	ConstantBuffer GETTranslationBufferData() { return this->translation; };
 
 	void addToCommList(ID3D12GraphicsCommandList3*	commandList4);
@@ -28,6 +28,6 @@ private:
 	ID3D12Resource1*			vertexBufferResource = nullptr;
 	D3D12_VERTEX_BUFFER_VIEW	vertexBufferView = {};
 
-	ConstantBuffer				constantBufferCPU = {};
+	ConstantBuffer				color = {};
 	ConstantBuffer				translation = {};
 };

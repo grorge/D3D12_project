@@ -30,6 +30,17 @@ Renderer::~Renderer()
 	SafeRelease(&rootSignature);
 	SafeRelease(&pipeLineState);
 
+	SafeRelease(&descriptorHeapConstBuffers);
+
+	delete this->object;
+	for (Object* obj : this->objectList)
+	{
+		delete obj;
+	}
+
+	SafeRelease(&dsDescriptorHeap);
+	SafeRelease(&depthStencilBuffer);
+
 	this->copyThread->join();
 	this->computeThread->join();
 	this->queueThread->join();
@@ -41,22 +52,23 @@ void Renderer::init(HWND hwnd)
 {
 	this->hwnd = hwnd;
 
-	CreateDirect3DDevice(hwnd);					//2. Create Device
+	this->CreateDirect3DDevice(hwnd);					//2. Create Device
 
-	CreateCommandInterfacesAndSwapChain(hwnd);	//3. Create CommandQueue and SwapChain
+	this->CreateCommandInterfacesAndSwapChain(hwnd);	//3. Create CommandQueue and SwapChain
 
-	CreateFenceAndEventHandle();						//4. Create Fence and Event handle
+	this->CreateFenceAndEventHandle();						//4. Create Fence and Event handle
 
-	CreateRenderTargets();								//5. Create render targets for backbuffer
+	this->CreateRenderTargets();								//5. Create render targets for backbuffer
 
-	CreateViewportAndScissorRect();						//6. Create viewport and rect
+	this->CreateViewportAndScissorRect();						//6. Create viewport and rect
 
-	CreateRootSignature();								//7. Create root signature
+	this->CreateRootSignature();								//7. Create root signature
 
-	CreateShadersAndPiplelineState();					//8. Set up the pipeline state
+	this->CreateShadersAndPiplelineState();					//8. Set up the pipeline state
 
-	CreateConstantBufferResources();					//9. Create constant buffer data
+	this->CreateConstantBufferResources();					//9. Create constant buffer data
 
+	this->CreateDepthStencil();
 	//CreateTriangleData();
 
 	InitThreads();
@@ -74,28 +86,7 @@ void Renderer::startGame()
 	}
 }
 
-void Renderer::update()
-{
-	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
-
-	for (Object* obj : this->objectList)
-	{
-		obj->update();
-	
-		//Update GPU memory
-		void* mappedMem = nullptr;
-		D3D12_RANGE readRange = { 0, 0 }; //We do not intend to read this resource on the CPU.
-		if (SUCCEEDED(constantBufferResource[backBufferIndex]->Map(0, &readRange, &mappedMem)))
-		{
-			memcpy(mappedMem, &obj->GETConstBufferData(), sizeof(ConstantBuffer));
-
-			D3D12_RANGE writeRange = { 0, sizeof(ConstantBuffer) };
-			constantBufferResource[backBufferIndex]->Unmap(0, &writeRange);
-		}
-	}
-}
-
-void Renderer::render()
+void Renderer::ready()
 {
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
@@ -124,8 +115,6 @@ void Renderer::render()
 	commandList4->RSSetViewports(1, &viewport);
 	commandList4->RSSetScissorRects(1, &scissorRect);
 
-	
-
 	//Record commands.
 	//Get the handle for the current render target used as back buffer.
 	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
@@ -135,31 +124,34 @@ void Renderer::render()
 
 	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	commandList4->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
+	this->commandList4->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-	commandList4->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
 
+void Renderer::update()
+{
+	//Command list allocators can only be reset when the associated command lists have
+	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
 
+	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
+	
 	UINT instances = objectList.size();
 	UINT byteWidth = sizeof(float) * 4;
 	int i = 0;
+
 	void* translationData = malloc(byteWidth * instances);
+	void* colorData = malloc(byteWidth * instances);
 
-	//commandList4->IASetVertexBuffers(0, 1, &this->object->GETVertexView());
-	//for (int i = 0; i < instances; i++)
-	//{
-	//	UINT offset = i * byteWidth;
-	//	this->object->addToCommList(this->commandList4);
-
-	//	memcpy(static_cast<char*>(translationData) + offset,
-	//		&this->object->GETTranslationBufferData(), byteWidth);
-	//}
 	for (Object* obj : this->objectList)
 	{
-		UINT offset = i * byteWidth;
-		obj->addToCommList(this->commandList4);
+		obj->update();
+
+		UINT offset = i * byteWidth;;
 
 		memcpy(static_cast<char*>(translationData) + offset,
-		&obj->GETTranslationBufferData(), byteWidth);
+			&obj->GETTranslationBufferData(), byteWidth);
+		memcpy(static_cast<char*>(colorData) + offset,
+			&obj->GETColorBufferData(), byteWidth);
 
 		i++;
 	}
@@ -170,8 +162,37 @@ void Renderer::render()
 	this->constantBufferResource[CONST_TRANSLATION_INDEX]->Map(0, nullptr, &mappedMem);
 	memcpy(mappedMem, translationData, byteWidth * instances);
 	this->constantBufferResource[CONST_TRANSLATION_INDEX]->Unmap(0, &writeRange);
+	
+	this->constantBufferResource[CONST_COLOR_INDEX]->Map(0, nullptr, &mappedMem);
+	memcpy(mappedMem, colorData, byteWidth * instances);
+	this->constantBufferResource[CONST_COLOR_INDEX]->Unmap(0, &writeRange);
 
-	commandList4->DrawInstanced(3, instances, 0, 0);
+
+
+	//for (Object* obj : this->objectList)
+	//{
+	//
+	//	//Update GPU memory
+	//	void* mappedMem = nullptr;
+	//	D3D12_RANGE readRange = { 0, 0 }; //We do not intend to read this resource on the CPU.
+	//	if (SUCCEEDED(constantBufferResource[backBufferIndex]->Map(0, &readRange, &mappedMem)))
+	//	{
+	//		memcpy(mappedMem, &obj->GETConstBufferData(), sizeof(ConstantBuffer));
+
+	//		D3D12_RANGE writeRange = { 0, sizeof(ConstantBuffer) };
+	//		constantBufferResource[backBufferIndex]->Unmap(0, &writeRange);
+	//	}
+	//}
+
+	free(translationData);
+	free(colorData);
+}
+
+void Renderer::render()
+{
+	this->ready();
+	
+	this->fillLists();
 
 
 	//Indicate that the back buffer will now be used to present.
@@ -194,6 +215,21 @@ void Renderer::render()
 
 	WaitForGpu(); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.
+}
+
+void Renderer::fillLists()
+{
+	UINT instances = objectList.size();
+	commandList4->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+
+	for (Object* obj : this->objectList)
+	{
+		obj->addToCommList(this->commandList4);
+		
+	}
+
+	commandList4->DrawInstanced(4, instances, 0, 0);
 }
 
 void Renderer::SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource,
@@ -228,7 +264,6 @@ void Renderer::WaitForGpu()
 		WaitForSingleObject(eventHandle, INFINITE);
 	}
 }
-
 
 void Renderer::CreateDirect3DDevice(HWND wndHandle)
 {
@@ -579,6 +614,60 @@ void Renderer::CreateConstantBufferResources()
 
 		cdh.ptr += constBuffersSize;
 	}
+}
+
+void Renderer::CreateDepthStencil()
+{
+	// --------------------- Depth Stencil
+
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = { };
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	hr = this->device4->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&this->dsDescriptorHeap));
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsStencilViewDesc = { };
+	dsStencilViewDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsStencilViewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsStencilViewDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+	D3D12_CLEAR_VALUE depthOptClearValue = { };
+	depthOptClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+	depthOptClearValue.DepthStencil.Depth = 1.0f;
+	depthOptClearValue.DepthStencil.Stencil = 0;
+
+	D3D12_HEAP_PROPERTIES dsHeapProp = {};
+	dsHeapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+	dsHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	dsHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	dsHeapProp.CreationNodeMask = 0;
+	dsHeapProp.VisibleNodeMask = 0;
+
+	D3D12_RESOURCE_DESC dsResourceDesc = { };
+	dsResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	dsResourceDesc.Alignment = 0;// 65536; //Wah?
+	dsResourceDesc.Width = (UINT)SCREEN_WIDTH;
+	dsResourceDesc.Height = (UINT)SCREEN_HEIGHT;
+	dsResourceDesc.DepthOrArraySize = 1;
+	dsResourceDesc.MipLevels = 1;
+	dsResourceDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsResourceDesc.SampleDesc = DXGI_SAMPLE_DESC{ 1,0 };
+	dsResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	dsResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+	hr = this->device4->CreateCommittedResource(
+		&dsHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&dsResourceDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&depthOptClearValue,
+		IID_PPV_ARGS(&this->depthStencilBuffer)
+	);
+
+	this->dsDescriptorHeap->SetName(L"DepthStencil Resource Heap");
+
+	this->device4->CreateDepthStencilView(this->depthStencilBuffer, &dsStencilViewDesc, this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
 }
 
 void Renderer::InitThreads()
