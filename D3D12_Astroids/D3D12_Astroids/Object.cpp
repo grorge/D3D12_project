@@ -2,8 +2,6 @@
 
 Object::Object(ID3D12Device4* device4, int test)
 {
-	//this->device4Reff = device4Reff;
-
 	this->CreateTriangleData(device4);
 
 	//this->translation = { 0.5f, 1.0f, 0.0001f, 1.0f };
@@ -20,7 +18,6 @@ Object::~Object()
 void Object::addToCommList(ID3D12GraphicsCommandList3 * commandList4)
 {
 	commandList4->IASetVertexBuffers(0, 1, &vertexBufferView);
-	//commandList4->DrawInstanced(3, 1, 0, 0);
 }
 
 void Object::update()
@@ -99,8 +96,4 @@ void Object::CreateTriangleData(ID3D12Device4* device4)
 	vertexBufferView.BufferLocation = vertexBufferResource->GetGPUVirtualAddress();
 	vertexBufferView.StrideInBytes = sizeof(Vertex);
 	vertexBufferView.SizeInBytes = sizeof(triangleVertices);
-}
-
-void Object::CreateConstantBufferResources()
-{
 }
