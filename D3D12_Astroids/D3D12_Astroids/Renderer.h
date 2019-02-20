@@ -10,6 +10,7 @@
 #define NUM_SWAP_BUFFERS 2
 #define NUM_CONST_BUFFERS 2
 
+#define CONST_COLOR_INDEX 0
 #define CONST_TRANSLATION_INDEX 1
 
 class Renderer
@@ -25,6 +26,7 @@ public:
 	void render();
 
 private:
+	void fillLists();
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
 	void WaitForGpu();
 
@@ -36,6 +38,7 @@ private:
 	void CreateShadersAndPiplelineState();									
 	void CreateRootSignature();
 	void CreateConstantBufferResources();
+	void CreateDepthStencil();
 
 	MSG msg = { 0 };
 	HWND hwnd;
@@ -68,6 +71,9 @@ private:
 	ID3D12DescriptorHeap*		descriptorHeapConstBuffers = {};
 	ID3D12Resource1*			constantBufferResource[NUM_CONST_BUFFERS] = {};
 
+
+	ID3D12DescriptorHeap*		dsDescriptorHeap = {};
+	ID3D12Resource*				depthStencilBuffer = {};
 
 	//-----------------------
 

@@ -7,6 +7,7 @@ Object::Object(ID3D12Device4* device4, int test)
 	this->CreateTriangleData(device4);
 
 	this->translation = { ((float)test / 3.0f) * 2.0f - 0.5f, ((float)test / 3.0f) * 2.0f - 1.0f, 0.0001f, 1.0f };
+	this->color = { ((float)test / 3.0f) * 2.0f - 0.5f, ((float)test / 3.0f) * 2.0f - 1.0f, 0.0001f };
 }
 
 Object::~Object()
@@ -25,16 +26,16 @@ void Object::update()
 	//Update constant buffer
 	for (int i = 0; i < 3; i++)
 	{
-		constantBufferCPU.values[i] += 0.0001f * (i + 1);
-		if (constantBufferCPU.values[i] > 1)
+		color.values[i] += 0.0001f * (i + 1);
+		if (color.values[i] > 1)
 		{
-			constantBufferCPU.values[i] = 0;
+			color.values[i] = 0;
 		}
 	}
 	
 	if (this->translation.values[1] > 1.0f)
 		this->translation.values[1] = -1.0f;
-	else
+	else					/////1
 		this->translation.values[1] += 0.001f;
 }
 
