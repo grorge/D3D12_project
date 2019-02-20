@@ -2,12 +2,15 @@
 #include "D3DHeader.h"
 #include "Object.h"
 
+#include <vector>
+
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
 #define NUM_SWAP_BUFFERS 2
 #define NUM_CONST_BUFFERS 2
-#define NUM_CONST_BUFFERS 2
+
+#define CONST_TRANSLATION_INDEX 1
 
 class Renderer
 {
@@ -69,5 +72,5 @@ private:
 	//-----------------------
 
 	Object* object;
-
+	std::vector<Object*> objectList;
 };

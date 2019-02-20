@@ -10,14 +10,15 @@ struct Vertex
 class Object
 {
 public:
-	Object(ID3D12Device4* device4);
+	Object(ID3D12Device4* device4, int test);
 	~Object();
 
 	D3D12_VERTEX_BUFFER_VIEW GETVertexView() { return this->vertexBufferView; };
 	ConstantBuffer GETConstBufferData() { return this->constantBufferCPU; };
+	ConstantBuffer GETTranslationBufferData() { return this->translation; };
 
 	void addToCommList(ID3D12GraphicsCommandList3*	commandList4);
-	void update(UINT bbIndex);
+	void update();
 
 private:
 	void CreateTriangleData(ID3D12Device4* device4);
@@ -28,4 +29,5 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW	vertexBufferView = {};
 
 	ConstantBuffer				constantBufferCPU = {};
+	ConstantBuffer				translation = {};
 };

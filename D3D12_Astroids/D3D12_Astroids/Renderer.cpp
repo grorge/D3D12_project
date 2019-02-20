@@ -59,26 +59,33 @@ void Renderer::init(HWND hwnd)
 
 void Renderer::startGame()
 {
-	this->object = new Object(this->device4);
+	this->object = new Object(this->device4, 1);
+
+	for (int i = 0; i < 3; i++)
+	{
+		this->objectList.push_back(new Object(this->device4, i));
+	}
 }
 
 void Renderer::update()
 {
 	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 
-	this->object->update(backBufferIndex);
-
-	//Update GPU memory
-	void* mappedMem = nullptr;
-	D3D12_RANGE readRange = { 0, 0 }; //We do not intend to read this resource on the CPU.
-	if (SUCCEEDED(constantBufferResource[backBufferIndex]->Map(0, &readRange, &mappedMem)))
+	for (Object* obj : this->objectList)
 	{
-		memcpy(mappedMem, &this->object->GETConstBufferData(), sizeof(ConstantBuffer));
-
-		D3D12_RANGE writeRange = { 0, sizeof(ConstantBuffer) };
-		constantBufferResource[backBufferIndex]->Unmap(0, &writeRange);
-	}
+		obj->update();
 	
+		//Update GPU memory
+		void* mappedMem = nullptr;
+		D3D12_RANGE readRange = { 0, 0 }; //We do not intend to read this resource on the CPU.
+		if (SUCCEEDED(constantBufferResource[backBufferIndex]->Map(0, &readRange, &mappedMem)))
+		{
+			memcpy(mappedMem, &obj->GETConstBufferData(), sizeof(ConstantBuffer));
+
+			D3D12_RANGE writeRange = { 0, sizeof(ConstantBuffer) };
+			constantBufferResource[backBufferIndex]->Unmap(0, &writeRange);
+		}
+	}
 }
 
 void Renderer::render()
@@ -123,10 +130,41 @@ void Renderer::render()
 	commandList4->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
 
 	commandList4->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	//commandList4->IASetVertexBuffers(0, 1, &this->object->GETVertexView());
-	//commandList4->DrawInstanced(3, 1, 0, 0);
-	this->object->addToCommList(this->commandList4);
 
+
+	UINT instances = objectList.size();
+	UINT byteWidth = sizeof(float) * 4;
+	int i = 0;
+	void* translationData = malloc(byteWidth * instances);
+
+	//commandList4->IASetVertexBuffers(0, 1, &this->object->GETVertexView());
+	//for (int i = 0; i < instances; i++)
+	//{
+	//	UINT offset = i * byteWidth;
+	//	this->object->addToCommList(this->commandList4);
+
+	//	memcpy(static_cast<char*>(translationData) + offset,
+	//		&this->object->GETTranslationBufferData(), byteWidth);
+	//}
+	for (Object* obj : this->objectList)
+	{
+		UINT offset = i * byteWidth;
+		obj->addToCommList(this->commandList4);
+
+		memcpy(static_cast<char*>(translationData) + offset,
+		&obj->GETTranslationBufferData(), byteWidth);
+
+		i++;
+	}
+
+	//Update GPU memory
+	void* mappedMem = nullptr;
+	D3D12_RANGE writeRange = { 0, byteWidth * instances };
+	this->constantBufferResource[CONST_TRANSLATION_INDEX]->Map(0, nullptr, &mappedMem);
+	memcpy(mappedMem, translationData, byteWidth * instances);
+	this->constantBufferResource[CONST_TRANSLATION_INDEX]->Unmap(0, &writeRange);
+
+	commandList4->DrawInstanced(3, instances, 0, 0);
 
 
 	//Indicate that the back buffer will now be used to present.
@@ -436,12 +474,18 @@ void Renderer::CreateShadersAndPiplelineState()
 void Renderer::CreateRootSignature()
 {
 	//define descriptor range(s)
-	D3D12_DESCRIPTOR_RANGE  dtRanges[1];
+	D3D12_DESCRIPTOR_RANGE  dtRanges[2];
 	dtRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	dtRanges[0].NumDescriptors = 1; //only one CB in this example
 	dtRanges[0].BaseShaderRegister = 0; //register b0
 	dtRanges[0].RegisterSpace = 0; //register(b0,space0);
 	dtRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	
+	dtRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	dtRanges[1].NumDescriptors = 1; //only one CB in this example
+	dtRanges[1].BaseShaderRegister = 1; //register b0
+	dtRanges[1].RegisterSpace = 0; //register(b0,space0);
+	dtRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	//create a descriptor table
 	D3D12_ROOT_DESCRIPTOR_TABLE dt;
@@ -479,11 +523,11 @@ void Renderer::CreateConstantBufferResources()
 {
 	//for (int i = 0; i < NUM_CONST_BUFFERS; i++)
 	//{
-		D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
-		heapDescriptorDesc.NumDescriptors = NUM_CONST_BUFFERS;
-		heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		device4->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&descriptorHeapConstBuffers));
+	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
+	heapDescriptorDesc.NumDescriptors = NUM_CONST_BUFFERS;
+	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	device4->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&descriptorHeapConstBuffers));
 	//}
 
 	UINT constBuffersSize = device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);

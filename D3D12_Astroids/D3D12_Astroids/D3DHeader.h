@@ -10,7 +10,7 @@
 
 struct ConstantBuffer
 {
-	float colorChannel[4];
+	float values[4];
 };
 
 template<class Interface>

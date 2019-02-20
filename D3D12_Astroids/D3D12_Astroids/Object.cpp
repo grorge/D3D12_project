@@ -1,10 +1,12 @@
 #include "Object.h"
 
-Object::Object(ID3D12Device4* device4)
+Object::Object(ID3D12Device4* device4, int test)
 {
 	//this->device4Reff = device4Reff;
 
 	this->CreateTriangleData(device4);
+
+	this->translation = { ((float)test / 3.0f) * 2.0f - 0.5f, ((float)test / 3.0f) * 2.0f - 1.0f, 0.0001f, 1.0f };
 }
 
 Object::~Object()
@@ -15,20 +17,25 @@ Object::~Object()
 void Object::addToCommList(ID3D12GraphicsCommandList3 * commandList4)
 {
 	commandList4->IASetVertexBuffers(0, 1, &vertexBufferView);
-	commandList4->DrawInstanced(3, 1, 0, 0);
+	//commandList4->DrawInstanced(3, 1, 0, 0);
 }
 
-void Object::update(UINT bbIndex)
+void Object::update()
 {
 	//Update constant buffer
 	for (int i = 0; i < 3; i++)
 	{
-		constantBufferCPU.colorChannel[i] += 0.0001f * (i + 1);
-		if (constantBufferCPU.colorChannel[i] > 1)
+		constantBufferCPU.values[i] += 0.0001f * (i + 1);
+		if (constantBufferCPU.values[i] > 1)
 		{
-			constantBufferCPU.colorChannel[i] = 0;
+			constantBufferCPU.values[i] = 0;
 		}
 	}
+	
+	if (this->translation.values[1] > 1.0f)
+		this->translation.values[1] = -1.0f;
+	else
+		this->translation.values[1] += 0.001f;
 }
 
 void Object::CreateTriangleData(ID3D12Device4* device4)
