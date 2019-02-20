@@ -70,6 +70,11 @@ void Renderer::startGame()
 
 void Renderer::update()
 {
+	//Command list allocators can only be reset when the associated command lists have
+	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
+	commandAllocator->Reset();
+	commandList4->Reset(commandAllocator, pipeLineState);
+
 	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 	
 	UINT instances = objectList.size();
@@ -127,11 +132,6 @@ void Renderer::update()
 
 void Renderer::render()
 {
-	//Command list allocators can only be reset when the associated command lists have
-	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	commandAllocator->Reset();
-	commandList4->Reset(commandAllocator, pipeLineState);
-
 	//Indicate that the back buffer will be used as render target.
 	SetResourceTransitionBarrier(commandList4,
 		renderTargets[backBufferIndex],
