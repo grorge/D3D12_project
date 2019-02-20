@@ -59,11 +59,12 @@ void Renderer::init(HWND hwnd)
 
 	this->CreateRootSignature();								//7. Create root signature
 
+	this->CreateDepthStencil();
+
 	this->CreateShadersAndPiplelineState();					//8. Set up the pipeline state
 
 	this->CreateConstantBufferResources();					//9. Create constant buffer data
 
-	this->CreateDepthStencil();
 	//CreateTriangleData();
 
 	this->WaitForGpu();
@@ -94,7 +95,6 @@ void Renderer::ready()
 	);
 	//Set constant buffer descriptor heap
 	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeapConstBuffers };
-	//ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeap[backBufferIndex] };
 	commandList4->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 
 	//Set root signature
@@ -102,8 +102,7 @@ void Renderer::ready()
 
 	//Set root descriptor table to index 0 in previously set root signature
 	commandList4->SetGraphicsRootDescriptorTable(0, descriptorHeapConstBuffers->GetGPUDescriptorHandleForHeapStart());
-	//commandList4->SetGraphicsRootDescriptorTable(0, descriptorHeap[backBufferIndex]->GetGPUDescriptorHandleForHeapStart());
-
+	
 	//Set necessary states.
 	commandList4->RSSetViewports(1, &viewport);
 	commandList4->RSSetScissorRects(1, &scissorRect);
@@ -113,7 +112,7 @@ void Renderer::ready()
 	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
 	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
 
-	commandList4->OMSetRenderTargets(1, &cdh, true, nullptr);
+	commandList4->OMSetRenderTargets(1, &cdh, true, &this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	commandList4->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
@@ -123,9 +122,6 @@ void Renderer::ready()
 
 void Renderer::update()
 {
-	//Command list allocators can only be reset when the associated command lists have
-	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-
 	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 	
 	UINT instances = objectList.size();
@@ -159,24 +155,7 @@ void Renderer::update()
 	this->constantBufferResource[CONST_COLOR_INDEX]->Map(0, nullptr, &mappedMem);
 	memcpy(mappedMem, colorData, byteWidth * instances);
 	this->constantBufferResource[CONST_COLOR_INDEX]->Unmap(0, &writeRange);
-
-
-
-	//for (Object* obj : this->objectList)
-	//{
-	//
-	//	//Update GPU memory
-	//	void* mappedMem = nullptr;
-	//	D3D12_RANGE readRange = { 0, 0 }; //We do not intend to read this resource on the CPU.
-	//	if (SUCCEEDED(constantBufferResource[backBufferIndex]->Map(0, &readRange, &mappedMem)))
-	//	{
-	//		memcpy(mappedMem, &obj->GETConstBufferData(), sizeof(ConstantBuffer));
-
-	//		D3D12_RANGE writeRange = { 0, sizeof(ConstantBuffer) };
-	//		constantBufferResource[backBufferIndex]->Unmap(0, &writeRange);
-	//	}
-	//}
-
+	   
 	free(translationData);
 	free(colorData);
 }
@@ -186,7 +165,6 @@ void Renderer::render()
 	this->ready();
 	
 	this->fillLists();
-
 
 	//Indicate that the back buffer will now be used to present.
 	SetResourceTransitionBarrier(commandList4,
@@ -218,9 +196,7 @@ void Renderer::fillLists()
 
 	for (Object* obj : this->objectList)
 	{
-		obj->addToCommList(this->commandList4);
-		
-	}
+		obj->addToCommList(this->commandList4);	}
 
 	commandList4->DrawInstanced(4, instances, 0, 0);
 }
@@ -469,6 +445,24 @@ void Renderer::CreateShadersAndPiplelineState()
 	inputLayoutDesc.pInputElementDescs = inputElementDesc;
 	inputLayoutDesc.NumElements = ARRAYSIZE(inputElementDesc);
 
+	////// Depth Stencil Description //////
+	const D3D12_DEPTH_STENCILOP_DESC defStencilOP =
+	{
+		D3D12_STENCIL_OP_KEEP,
+		D3D12_STENCIL_OP_KEEP,
+		D3D12_STENCIL_OP_KEEP,
+		D3D12_COMPARISON_FUNC_ALWAYS
+	};
+	D3D12_DEPTH_STENCIL_DESC dsDesc = { };
+	dsDesc.DepthEnable = TRUE;
+	dsDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	dsDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	dsDesc.StencilEnable = FALSE;
+	dsDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+	dsDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+	dsDesc.FrontFace = defStencilOP;
+	dsDesc.BackFace = defStencilOP;
+
 	////// Pipline State //////
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsd = {};
 
@@ -484,6 +478,9 @@ void Renderer::CreateShadersAndPiplelineState()
 	//Specify render target and depthstencil usage.
 	gpsd.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	gpsd.NumRenderTargets = 1;
+
+	gpsd.DepthStencilState = dsDesc;
+	gpsd.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
 	gpsd.SampleDesc.Count = 1;
 	gpsd.SampleMask = UINT_MAX;
@@ -510,15 +507,18 @@ void Renderer::CreateRootSignature()
 {
 	//define descriptor range(s)
 	D3D12_DESCRIPTOR_RANGE  dtRanges[2];
+	
+	//Color buffer
 	dtRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	dtRanges[0].NumDescriptors = 1; //only one CB in this example
 	dtRanges[0].BaseShaderRegister = 0; //register b0
 	dtRanges[0].RegisterSpace = 0; //register(b0,space0);
 	dtRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	
+	//Translation buffer
 	dtRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	dtRanges[1].NumDescriptors = 1; //only one CB in this example
-	dtRanges[1].BaseShaderRegister = 1; //register b0
+	dtRanges[1].BaseShaderRegister = 1; //register b1
 	dtRanges[1].RegisterSpace = 0; //register(b0,space0);
 	dtRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
