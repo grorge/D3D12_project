@@ -114,8 +114,6 @@ void Renderer::update()
 {
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	commandAllocator->Reset();
-	commandList4->Reset(commandAllocator, pipeLineState);
 
 	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 	
@@ -627,8 +625,8 @@ void Renderer::CreateDepthStencil()
 	D3D12_RESOURCE_DESC dsResourceDesc = { };
 	dsResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	dsResourceDesc.Alignment = 0;// 65536; //Wah?
-	dsResourceDesc.Width = this->viewport.Width;
-	dsResourceDesc.Height = this->viewport.Height;
+	dsResourceDesc.Width = (UINT)SCREEN_WIDTH;
+	dsResourceDesc.Height = (UINT)SCREEN_HEIGHT;
 	dsResourceDesc.DepthOrArraySize = 1;
 	dsResourceDesc.MipLevels = 1;
 	dsResourceDesc.Format = DXGI_FORMAT_D32_FLOAT;
