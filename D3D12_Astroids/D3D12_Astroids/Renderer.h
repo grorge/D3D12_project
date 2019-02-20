@@ -1,7 +1,8 @@
 #pragma once
 #include "D3DHeader.h"
 #include "Object.h"
-
+#include <thread>
+#include <iostream>
 #include <vector>
 
 #define SCREEN_WIDTH 640
@@ -36,6 +37,15 @@ private:
 	void CreateShadersAndPiplelineState();									
 	void CreateRootSignature();
 	void CreateConstantBufferResources();
+	void InitThreads();
+	void CopyThreadFunc();
+	void ComputeThreadFunc();
+	void QueueThreadFunc();
+
+	bool gameActive;
+	std::thread* copyThread;
+	std::thread* computeThread;
+	std::thread* queueThread;
 
 	MSG msg = { 0 };
 	HWND hwnd;

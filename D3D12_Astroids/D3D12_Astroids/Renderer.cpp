@@ -3,6 +3,7 @@
 
 Renderer::Renderer()
 {
+	this->gameActive = true;
 }
 
 Renderer::~Renderer()
@@ -29,6 +30,10 @@ Renderer::~Renderer()
 	SafeRelease(&rootSignature);
 	SafeRelease(&pipeLineState);
 
+	this->copyThread->join();
+	this->computeThread->join();
+	this->queueThread->join();
+
 	//SafeRelease(&vertexBufferResource);
 }
 
@@ -53,6 +58,8 @@ void Renderer::init(HWND hwnd)
 	CreateConstantBufferResources();					//9. Create constant buffer data
 
 	//CreateTriangleData();
+
+	InitThreads();
 
 	WaitForGpu();
 }
@@ -571,5 +578,36 @@ void Renderer::CreateConstantBufferResources()
 		device4->CreateConstantBufferView(&cbvDesc, cdh);
 
 		cdh.ptr += constBuffersSize;
+	}
+}
+
+void Renderer::InitThreads()
+{
+	this->copyThread = new std::thread(&Renderer::CopyThreadFunc, this);
+	this->computeThread = new std::thread(&Renderer::ComputeThreadFunc, this);
+	this->queueThread = new std::thread(&Renderer::QueueThreadFunc, this);
+}
+
+void Renderer::CopyThreadFunc()
+{
+	while (this->gameActive)
+	{
+
+	}
+}
+
+void Renderer::ComputeThreadFunc()
+{
+	while (this->gameActive)
+	{
+
+	}
+}
+
+void Renderer::QueueThreadFunc()
+{
+	while (this->gameActive)
+	{
+
 	}
 }
