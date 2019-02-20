@@ -26,6 +26,8 @@ public:
 	void update();
 	void render();
 
+	ID3D12Device4*				device4 = nullptr;
+
 private:
 	void fillLists();
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
@@ -48,7 +50,6 @@ private:
 
 	UINT backBufferIndex = 0;
 
-	ID3D12Device4*				device4 = nullptr;
 	ID3D12GraphicsCommandList3*	commandList4 = nullptr;
 	ID3D12CommandQueue*			commandQueue = nullptr;
 	ID3D12CommandAllocator*		commandAllocator = nullptr;

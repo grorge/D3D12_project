@@ -115,9 +115,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CommandAllocator.h" />
+    <ClInclude Include="CommandList.h" />
+    <ClInclude Include="CommandQueue.h" />
     <ClInclude Include="D3DHeader.h" />
+    <ClInclude Include="DefaultResource.h" />
+    <ClInclude Include="HelperHeader.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="Resource.h" />
+    <ClInclude Include="UploadResource.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PixelShader.hlsl">
@@ -142,9 +149,14 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CommandAllocator.cpp" />
+    <ClCompile Include="CommandList.cpp" />
+    <ClCompile Include="CommandQueue.cpp" />
+    <ClCompile Include="DefaultResource.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="UploadResource.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
