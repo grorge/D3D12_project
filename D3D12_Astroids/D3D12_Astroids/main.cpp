@@ -1,11 +1,18 @@
 #include "Renderer.h"
 
+#define _CRTDBG_MAP_ALLOC  
+#include <stdlib.h>  
+#include <crtdbg.h> 
+
 HWND				InitWindow(HINSTANCE hInstance);	//1. Create Window
 LRESULT CALLBACK	WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #pragma region wwinMain
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
+
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
 	MSG msg			= {0};
 	HWND wndHandle	= InitWindow(hInstance);			//1. Create Window
 	
@@ -32,7 +39,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 		}
 	}
 	
-	
+	delete render;
 
 	return (int)msg.wParam;
 }

@@ -29,6 +29,17 @@ Renderer::~Renderer()
 	SafeRelease(&rootSignature);
 	SafeRelease(&pipeLineState);
 
+	SafeRelease(&descriptorHeapConstBuffers);
+
+	delete this->object;
+	for (Object* obj : this->objectList)
+	{
+		delete obj;
+	}
+
+	SafeRelease(&dsDescriptorHeap);
+	SafeRelease(&depthStencilBuffer);
+
 	//SafeRelease(&vertexBufferResource);
 }
 
@@ -165,6 +176,9 @@ void Renderer::update()
 	//		constantBufferResource[backBufferIndex]->Unmap(0, &writeRange);
 	//	}
 	//}
+
+	free(translationData);
+	free(colorData);
 }
 
 void Renderer::render()
