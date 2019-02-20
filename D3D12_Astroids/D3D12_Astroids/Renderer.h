@@ -22,6 +22,7 @@ public:
 	void init(HWND hwnd);
 	void startGame();
 
+	void ready();
 	void update();
 	void render();
 

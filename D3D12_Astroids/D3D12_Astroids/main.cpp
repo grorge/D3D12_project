@@ -25,6 +25,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 			}
 			else
 			{
+				//render->ready();
 				render->update();
 				render->render();
 			}
