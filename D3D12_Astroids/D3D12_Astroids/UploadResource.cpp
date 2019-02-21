@@ -18,13 +18,12 @@ void UploadResource::Initialize(
 	ID3D12Device * pDevice,
 	const UINT byteWidth,
 	const D3D12_HEAP_FLAGS flag,
-	const DXGI_FORMAT format)
+	const D3D12_RESOURCE_STATES state)
 {
 	m_byteWidth = byteWidth;
-	m_currentState = D3D12_RESOURCE_STATE_GENERIC_READ;
+	m_currentState = state;
 
 	{
-
 		D3D12_HEAP_PROPERTIES properties = {};
 		properties.Type = D3D12_HEAP_TYPE_UPLOAD;
 		properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -42,7 +41,7 @@ void UploadResource::Initialize(
 		desc.Height = 1;
 		desc.DepthOrArraySize = 1;
 		desc.MipLevels = 1;
-		desc.Format = format;
+		desc.Format = DXGI_FORMAT_UNKNOWN;
 		desc.SampleDesc = { 1, 0 };
 		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR; // Swizzle Layout better?
 		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
@@ -60,7 +59,11 @@ void UploadResource::Initialize(
 void UploadResource::SetData(const void * data)
 {
 	void* dataBegin = nullptr;
-	mp_resource->Map(0, nullptr, &dataBegin);
+
+	D3D12_RANGE readRange = { 0, 0 };
+	D3D12_RANGE writeRange = { 0, m_byteWidth };
+
+	mp_resource->Map(0, &readRange, &dataBegin);
 	memcpy(dataBegin, data, m_byteWidth);
-	mp_resource->Unmap(0, nullptr);
+	mp_resource->Unmap(0, &writeRange);
 }

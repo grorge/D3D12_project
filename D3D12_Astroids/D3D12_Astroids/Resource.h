@@ -5,25 +5,16 @@
 class Resource 
 {
 public:
-	virtual void Initialize(
-		ID3D12Device* pDevice,
-		const UINT byteWidth,
-		const D3D12_HEAP_FLAGS flag,
-		const DXGI_FORMAT format) = 0;
-
 	ID3D12Resource* mp_resource;
 	D3D12_RESOURCE_STATES m_currentState;
 
+	virtual void Initialize(
+		ID3D12Device * pDevice,
+		const UINT byteWidth,
+		const D3D12_HEAP_FLAGS flag,
+		const D3D12_RESOURCE_STATES state) = 0;
 
-
-	void Destroy() 
-	{
-		if (mp_resource)
-		{
-			mp_resource->Release();
-			mp_resource = nullptr;
-		}
-	};
+	void Destroy() { SafeRelease(&mp_resource); };
 
 protected:
 

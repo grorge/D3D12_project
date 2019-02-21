@@ -13,16 +13,15 @@ DefaultResource::~DefaultResource()
 }
 
 void DefaultResource::Initialize(
-	ID3D12Device * pDevice, 
-	const UINT byteWidth, 
-	const D3D12_HEAP_FLAGS flag, 
-	const DXGI_FORMAT format)
+	ID3D12Device * pDevice,
+	const UINT byteWidth,
+	const D3D12_HEAP_FLAGS flag,
+	const D3D12_RESOURCE_STATES state)
 {
 	m_byteWidth = byteWidth;
-	m_currentState = D3D12_RESOURCE_STATE_COMMON;
+	m_currentState = state;
 
 	{
-
 		D3D12_HEAP_PROPERTIES properties = {};
 		properties.Type = D3D12_HEAP_TYPE_DEFAULT;
 		properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -40,7 +39,7 @@ void DefaultResource::Initialize(
 		desc.Height = 1;
 		desc.DepthOrArraySize = 1;
 		desc.MipLevels = 1;
-		desc.Format = format;
+		desc.Format = DXGI_FORMAT_UNKNOWN;
 		desc.SampleDesc = { 1, 0 };
 		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR; // Swizzle Layout better?
 		desc.Flags = D3D12_RESOURCE_FLAG_NONE;

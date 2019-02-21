@@ -19,7 +19,7 @@ public:
 
 	void Destroy();
 
+	ID3D12CommandQueue* mp_cmdQueue;
 private:
 
-	ID3D12CommandQueue* mp_cmdQueue;
 };
