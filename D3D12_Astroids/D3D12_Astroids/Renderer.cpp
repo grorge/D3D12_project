@@ -184,6 +184,8 @@ void Renderer::render()
 	DXGI_PRESENT_PARAMETERS pp = {};
 	swapChain4->Present1(0, 0, &pp);
 
+	//int asgsdg = swapChain4->GetCurrentBackBufferIndex();
+
 	WaitForGpu(); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.
 }
@@ -192,11 +194,11 @@ void Renderer::fillLists()
 {
 	UINT instances = objectList.size();
 	commandList4->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-
-
+	
 	for (Object* obj : this->objectList)
 	{
-		obj->addToCommList(this->commandList4);	}
+		obj->addToCommList(this->commandList4);	
+	}
 
 	commandList4->DrawInstanced(4, instances, 0, 0);
 }
@@ -500,8 +502,6 @@ void Renderer::CreateShadersAndPiplelineState()
 
 	device4->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(&pipeLineState));
 }
-
-
 
 void Renderer::CreateRootSignature()
 {
