@@ -1,6 +1,6 @@
 #include "Renderer.h"
 
-void CopyResource(
+void UploadResourceToDefault(
 	Resource* pDest,
 	Resource* pSrc,
 	ID3D12GraphicsCommandList* pCmdList)
@@ -135,7 +135,7 @@ void Renderer::startGame()
 	m_graphicsCmdAllocator.mp_cmdAllocator->Reset();
 	m_graphicsCmdList.mp_cmdList->Reset(m_graphicsCmdAllocator.mp_cmdAllocator, nullptr);
 
-	CopyResource(
+	UploadResourceToDefault(
 		&this->objectList[0]->m_resource,
 		&upload,
 		m_graphicsCmdList.mp_cmdList);
