@@ -1,14 +1,18 @@
 #pragma once
 #include "D3DHeader.h"
 #include "Object.h"
+#include <iostream>
+#include <thread>
 
 #include <vector>
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
-#define NUM_SWAP_BUFFERS 2
+#define NUM_SWAP_BUFFERS 5
 #define NUM_CONST_BUFFERS 2
+#define NUM_ALLOCATED_CONST_BUFFERS (NUM_CONST_BUFFERS * NUM_SWAP_BUFFERS)
+
 
 #define CONST_COLOR_INDEX 0
 #define CONST_TRANSLATION_INDEX 1
@@ -41,6 +45,8 @@ private:
 	void CreateConstantBufferResources();
 	void CreateDepthStencil();
 
+
+
 	MSG msg = { 0 };
 	HWND hwnd;
 
@@ -49,9 +55,9 @@ private:
 	UINT backBufferIndex = 0;
 
 	ID3D12Device4*				device4 = nullptr;
-	ID3D12GraphicsCommandList3*	commandList4 = nullptr;
+	ID3D12GraphicsCommandList3*	commandList4[NUM_SWAP_BUFFERS] = {};
 	ID3D12CommandQueue*			commandQueue = nullptr;
-	ID3D12CommandAllocator*		commandAllocator = nullptr;
+	ID3D12CommandAllocator*		commandAllocator[NUM_SWAP_BUFFERS] = {};
 	IDXGISwapChain4*			swapChain4 = nullptr;
 
 	ID3D12Fence1*				fence = nullptr;
@@ -70,7 +76,7 @@ private:
 	
 	ID3D12DescriptorHeap*		descriptorHeap[NUM_SWAP_BUFFERS] = {};
 	ID3D12DescriptorHeap*		descriptorHeapConstBuffers = {};
-	ID3D12Resource1*			constantBufferResource[NUM_CONST_BUFFERS] = {};
+	ID3D12Resource1*			constantBufferResource[NUM_ALLOCATED_CONST_BUFFERS] = {};
 
 
 	ID3D12DescriptorHeap*		dsDescriptorHeap = {};

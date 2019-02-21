@@ -12,8 +12,6 @@ Renderer::~Renderer()
 	CloseHandle(eventHandle);
 	SafeRelease(&device4);		
 	SafeRelease(&commandQueue);
-	SafeRelease(&commandAllocator);
-	SafeRelease(&commandList4);
 	SafeRelease(&swapChain4);
 
 	SafeRelease(&fence);
@@ -21,9 +19,14 @@ Renderer::~Renderer()
 	SafeRelease(&renderTargetsHeap);
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
+		SafeRelease(&commandAllocator[i]);
+		SafeRelease(&commandList4[i]);
 		SafeRelease(&descriptorHeap[i]);
-		SafeRelease(&constantBufferResource[i]);
 		SafeRelease(&renderTargets[i]);
+	}
+	for (int i = 0; i < NUM_ALLOCATED_CONST_BUFFERS; i++)
+	{
+		SafeRelease(&constantBufferResource[i]);
 	}
 
 	SafeRelease(&rootSignature);
@@ -80,50 +83,10 @@ void Renderer::startGame()
 	}
 }
 
-void Renderer::ready()
-{
-	//Command list allocators can only be reset when the associated command lists have
-	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	commandAllocator->Reset();
-	commandList4->Reset(commandAllocator, pipeLineState);
-
-	//Indicate that the back buffer will be used as render target.
-	SetResourceTransitionBarrier(commandList4,
-		renderTargets[backBufferIndex],
-		D3D12_RESOURCE_STATE_PRESENT,		//state before
-		D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
-	);
-	//Set constant buffer descriptor heap
-	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeapConstBuffers };
-	commandList4->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
-
-	//Set root signature
-	commandList4->SetGraphicsRootSignature(rootSignature);
-
-	//Set root descriptor table to index 0 in previously set root signature
-	commandList4->SetGraphicsRootDescriptorTable(0, descriptorHeapConstBuffers->GetGPUDescriptorHandleForHeapStart());
-	
-	//Set necessary states.
-	commandList4->RSSetViewports(1, &viewport);
-	commandList4->RSSetScissorRects(1, &scissorRect);
-
-	//Record commands.
-	//Get the handle for the current render target used as back buffer.
-	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
-	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
-
-	commandList4->OMSetRenderTargets(1, &cdh, true, &this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-	commandList4->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
-	this->commandList4->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-}
-
 void Renderer::update()
 {
 	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
-	
+
 	UINT instances = objectList.size();
 	UINT byteWidth = sizeof(float) * 4;
 	int i = 0;
@@ -148,17 +111,58 @@ void Renderer::update()
 	//Update GPU memory
 	void* mappedMem = nullptr;
 	D3D12_RANGE writeRange = { 0, byteWidth * instances };
-	this->constantBufferResource[CONST_TRANSLATION_INDEX]->Map(0, nullptr, &mappedMem);
+	this->constantBufferResource[CONST_TRANSLATION_INDEX + NUM_CONST_BUFFERS * this->backBufferIndex]->Map(0, nullptr, &mappedMem);
 	memcpy(mappedMem, translationData, byteWidth * instances);
-	this->constantBufferResource[CONST_TRANSLATION_INDEX]->Unmap(0, &writeRange);
-	
-	this->constantBufferResource[CONST_COLOR_INDEX]->Map(0, nullptr, &mappedMem);
+	this->constantBufferResource[CONST_TRANSLATION_INDEX + NUM_CONST_BUFFERS * this->backBufferIndex]->Unmap(0, &writeRange);
+
+	this->constantBufferResource[CONST_COLOR_INDEX + NUM_CONST_BUFFERS * this->backBufferIndex]->Map(0, nullptr, &mappedMem);
 	memcpy(mappedMem, colorData, byteWidth * instances);
-	this->constantBufferResource[CONST_COLOR_INDEX]->Unmap(0, &writeRange);
-	   
+	this->constantBufferResource[CONST_COLOR_INDEX + NUM_CONST_BUFFERS * this->backBufferIndex]->Unmap(0, &writeRange);
+
 	free(translationData);
 	free(colorData);
 }
+
+void Renderer::ready()
+{
+	//Command list allocators can only be reset when the associated command lists have
+	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
+	commandAllocator[this->backBufferIndex]->Reset();
+	commandList4[this->backBufferIndex]->Reset(commandAllocator[this->backBufferIndex], pipeLineState);
+
+	//Indicate that the back buffer will be used as render target.
+	SetResourceTransitionBarrier(commandList4[this->backBufferIndex],
+		renderTargets[backBufferIndex],
+		D3D12_RESOURCE_STATE_PRESENT,		//state before
+		D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
+	);
+	//Set constant buffer descriptor heap
+	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeapConstBuffers };
+	commandList4[this->backBufferIndex]->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+
+	//Set root signature
+	commandList4[this->backBufferIndex]->SetGraphicsRootSignature(rootSignature);
+
+	//Set root descriptor table to index 0 in previously set root signature
+	commandList4[this->backBufferIndex]->SetGraphicsRootDescriptorTable(0, descriptorHeapConstBuffers->GetGPUDescriptorHandleForHeapStart());
+	
+	//Set necessary states.
+	commandList4[this->backBufferIndex]->RSSetViewports(1, &viewport);
+	commandList4[this->backBufferIndex]->RSSetScissorRects(1, &scissorRect);
+
+	//Record commands.
+	//Get the handle for the current render target used as back buffer.
+	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
+	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
+
+	commandList4[this->backBufferIndex]->OMSetRenderTargets(1, &cdh, true, &this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+	commandList4[this->backBufferIndex]->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
+	this->commandList4[this->backBufferIndex]->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+}
+
 
 void Renderer::render()
 {
@@ -167,24 +171,26 @@ void Renderer::render()
 	this->fillLists();
 
 	//Indicate that the back buffer will now be used to present.
-	SetResourceTransitionBarrier(commandList4,
+	SetResourceTransitionBarrier(commandList4[this->backBufferIndex],
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
 		D3D12_RESOURCE_STATE_PRESENT		//state after
 	);
 
 	//Close the list to prepare it for execution.
-	commandList4->Close();
+	commandList4[this->backBufferIndex]->Close();
 
 	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { commandList4 };
+	ID3D12CommandList* listsToExecute[] = { commandList4[this->backBufferIndex] };
 	commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
 	//Present the frame.
 	DXGI_PRESENT_PARAMETERS pp = {};
 	swapChain4->Present1(0, 0, &pp);
+	swapChain4->Present1(0, 0, &pp);
 
-	//int asgsdg = swapChain4->GetCurrentBackBufferIndex();
+	printToDebug(swapChain4->GetCurrentBackBufferIndex());
+	printToDebug("\n");
 
 	WaitForGpu(); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.
@@ -193,14 +199,14 @@ void Renderer::render()
 void Renderer::fillLists()
 {
 	UINT instances = objectList.size();
-	commandList4->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	commandList4[this->backBufferIndex]->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	
 	for (Object* obj : this->objectList)
 	{
-		obj->addToCommList(this->commandList4);	
+		obj->addToCommList(this->commandList4[this->backBufferIndex]);	
 	}
 
-	commandList4->DrawInstanced(4, instances, 0, 0);
+	commandList4[this->backBufferIndex]->DrawInstanced(4, instances, 0, 0);
 }
 
 void Renderer::SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource,
@@ -229,7 +235,8 @@ void Renderer::WaitForGpu()
 	fenceValue++;
 
 	//Wait until command queue is done.
-	if (this->fence->GetCompletedValue() < fence)
+//	if (this->fence->GetCompletedValue() < fence)
+	if (fence > this->fence->GetCompletedValue() + NUM_SWAP_BUFFERS)
 	{
 		this->fence->SetEventOnCompletion(fence, eventHandle);
 		WaitForSingleObject(eventHandle, INFINITE);
@@ -309,19 +316,24 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 
 	//Create command allocator. The command allocator object corresponds
 	//to the underlying allocations in which GPU commands are stored.
-	device4->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
 
 	//Create command list.
-	device4->CreateCommandList(
-		0,
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		commandAllocator,
-		nullptr,
-		IID_PPV_ARGS(&commandList4));
+	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+	{
+		device4->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator[i]));
 
-	//Command lists are created in the recording state. Since there is nothing to
-	//record right now and the main loop expects it to be closed, we close it.
-	commandList4->Close();
+		device4->CreateCommandList(
+			0,
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			commandAllocator[i],
+			nullptr,
+			IID_PPV_ARGS(&commandList4[i]));
+
+		//Command lists are created in the recording state. Since there is nothing to
+		//record right now and the main loop expects it to be closed, we close it.
+		commandList4[i]->Close();
+	}
+
 
 	IDXGIFactory5*	factory = nullptr;
 	CreateDXGIFactory(IID_PPV_ARGS(&factory));
@@ -559,7 +571,7 @@ void Renderer::CreateConstantBufferResources()
 	//for (int i = 0; i < NUM_CONST_BUFFERS; i++)
 	//{
 	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
-	heapDescriptorDesc.NumDescriptors = NUM_CONST_BUFFERS;
+	heapDescriptorDesc.NumDescriptors = NUM_ALLOCATED_CONST_BUFFERS;
 	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	device4->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&descriptorHeapConstBuffers));
@@ -587,7 +599,7 @@ void Renderer::CreateConstantBufferResources()
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 	//Create a resource heap, descriptor heap, and pointer to cbv for each frame
-	for (int i = 0; i < NUM_CONST_BUFFERS; i++)
+	for (int i = 0; i < NUM_ALLOCATED_CONST_BUFFERS; i++)
 	{
 		device4->CreateCommittedResource(
 			&heapProperties,

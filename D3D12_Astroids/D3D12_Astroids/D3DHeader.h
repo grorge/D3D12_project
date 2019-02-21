@@ -27,7 +27,7 @@ inline void SafeRelease(
 	}
 }
 
-inline void printToDebug(const char* text)
+inline void printToDebug(const char* text, ...)
 {
 	char szBuff[1024];
 	va_list arg;
@@ -37,7 +37,7 @@ inline void printToDebug(const char* text)
 
 	OutputDebugString(szBuff);
 }
-inline void printToDebug(const int number)
+inline void printToDebug(const int number, ...)
 {
 	std::string str(std::to_string(number));
 
