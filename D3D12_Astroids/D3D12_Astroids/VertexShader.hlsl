@@ -27,6 +27,8 @@ VSOut main( VSIn input,
 	VSOut output	= (VSOut)0;
 	output.pos		= float4( input.pos, 1.0f) + translation[instance];
 	//output.pos		= float4( input.pos, 1.0f );
+	
+	//output.color = float4(1.0f, 1.0f, 1.0f, 1.0f);
 	output.color	= color[instance];
 	//output.color	= float4(R, G, B, A);
 

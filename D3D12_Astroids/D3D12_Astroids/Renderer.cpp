@@ -1,5 +1,41 @@
 #include "Renderer.h"
 
+void UploadResourceToDefault(
+	Resource* pDest,
+	Resource* pSrc,
+	ID3D12GraphicsCommandList* pCmdList)
+{
+	/*
+
+		if pSrc is an uploadResource, transitions may not be allowed
+		https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/ne-d3d12-d3d12_heap_type
+
+	*/
+
+	D3D12_RESOURCE_BARRIER open;
+	open.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	open.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+
+	open.Transition.pResource = pDest->mp_resource;
+	open.Transition.StateBefore = pDest->m_currentState;
+	open.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+	open.Transition.Subresource = 0;
+
+
+	D3D12_RESOURCE_BARRIER close;
+	close.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	close.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+
+	close.Transition.pResource = pDest->mp_resource;
+	close.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	close.Transition.StateAfter = pDest->m_currentState;
+	close.Transition.Subresource = 0;
+
+
+	pCmdList->ResourceBarrier(1, &open);
+	pCmdList->CopyResource(pDest->mp_resource, pSrc->mp_resource);
+	pCmdList->ResourceBarrier(1, &close);
+}
 
 Renderer::Renderer()
 {
@@ -11,9 +47,6 @@ Renderer::~Renderer()
 	WaitForGpu();
 	CloseHandle(eventHandle);
 	SafeRelease(&device4);		
-	SafeRelease(&commandQueue);
-	SafeRelease(&commandAllocator);
-	SafeRelease(&commandList4);
 	SafeRelease(&swapChain4);
 
 	SafeRelease(&fence);
@@ -22,14 +55,11 @@ Renderer::~Renderer()
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
 		SafeRelease(&descriptorHeap[i]);
-		SafeRelease(&constantBufferResource[i]);
 		SafeRelease(&renderTargets[i]);
 	}
 
 	SafeRelease(&rootSignature);
 	SafeRelease(&pipeLineState);
-
-	SafeRelease(&descriptorHeapConstBuffers);
 
 	delete this->object;
 	for (Object* obj : this->objectList)
@@ -39,15 +69,13 @@ Renderer::~Renderer()
 
 	SafeRelease(&dsDescriptorHeap);
 	SafeRelease(&depthStencilBuffer);
-
-	//SafeRelease(&vertexBufferResource);
 }
 
 void Renderer::init(HWND hwnd)
 {
 	this->hwnd = hwnd;
 
-	this->CreateDirect3DDevice(hwnd);					//2. Create Device
+	this->CreateDirect3DDevice();					//2. Create Device
 
 	this->CreateCommandInterfacesAndSwapChain(hwnd);	//3. Create CommandQueue and SwapChain
 
@@ -59,12 +87,11 @@ void Renderer::init(HWND hwnd)
 
 	this->CreateRootSignature();								//7. Create root signature
 
-	this->CreateDepthStencil();
-
 	this->CreateShadersAndPiplelineState();					//8. Set up the pipeline state
 
 	this->CreateConstantBufferResources();					//9. Create constant buffer data
 
+	this->CreateDepthStencil();
 	//CreateTriangleData();
 
 	this->WaitForGpu();
@@ -72,90 +99,136 @@ void Renderer::init(HWND hwnd)
 
 void Renderer::startGame()
 {
+	Vertex triangleVertices[4] =
+	{
+		-0.5f, -0.5f, 0.0f,	//v0 pos
+		1.0f, 0.0f, 0.0f,	//v0 color
+
+		-0.5f, 0.5f, 1.0f,	//v1
+		0.0f, 1.0f, 0.0f,	//v1 color
+
+		0.5f, -0.5f, 0.0f, //v2
+		0.0f, 0.0f, 1.0f,	//v2 color
+
+		0.5f, 0.5f, -1.0f, //v3
+		0.0f, 0.0f, 1.0f	//v3 color
+	};
+
+	const UINT byteWidth = sizeof(triangleVertices);
+
+	UploadResource upload;
+	upload.Initialize(
+		device4,
+		byteWidth,
+		D3D12_HEAP_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ);
+
+	upload.SetData(triangleVertices);
+
 	this->object = new Object(this->device4, 1);
 
 	for (int i = 0; i < 3; i++)
 	{
 		this->objectList.push_back(new Object(this->device4, i));
 	}
+	
+	m_graphicsCmdAllocator()->Reset();
+	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), nullptr);
+
+	UploadResourceToDefault(
+		&this->objectList[0]->m_resource,
+		&upload,
+		m_graphicsCmdList());
+
+	//Close the list to prepare it for execution.
+	m_graphicsCmdList()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
+	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+	WaitForGpu();
+	upload.Destroy();
 }
 
 void Renderer::ready()
 {
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	commandAllocator->Reset();
-	commandList4->Reset(commandAllocator, pipeLineState);
+	m_graphicsCmdAllocator()->Reset();
+	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), m_pipelineState.mp_pipelineState);
 
 	//Indicate that the back buffer will be used as render target.
-	SetResourceTransitionBarrier(commandList4,
+	SetResourceTransitionBarrier(m_graphicsCmdList(),
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_PRESENT,		//state before
 		D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
 	);
 	//Set constant buffer descriptor heap
-	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeapConstBuffers };
-	commandList4->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_constantBufferHeap.mp_descriptorHeap };
+	m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 
 	//Set root signature
-	commandList4->SetGraphicsRootSignature(rootSignature);
+	m_graphicsCmdList()->SetGraphicsRootSignature(rootSignature);
 
 	//Set root descriptor table to index 0 in previously set root signature
-	commandList4->SetGraphicsRootDescriptorTable(0, descriptorHeapConstBuffers->GetGPUDescriptorHandleForHeapStart());
-	
+	m_graphicsCmdList()->SetGraphicsRootDescriptorTable(
+		0, 
+		m_constantBufferHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
 	//Set necessary states.
-	commandList4->RSSetViewports(1, &viewport);
-	commandList4->RSSetScissorRects(1, &scissorRect);
+	m_graphicsCmdList()->RSSetViewports(1, &viewport);
+	m_graphicsCmdList()->RSSetScissorRects(1, &scissorRect);
 
 	//Record commands.
 	//Get the handle for the current render target used as back buffer.
 	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
 	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
 
-	commandList4->OMSetRenderTargets(1, &cdh, true, &this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	m_graphicsCmdList()->OMSetRenderTargets(1, &cdh, true, nullptr);
 
 	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-	commandList4->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
-	this->commandList4->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	m_graphicsCmdList()->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
+	m_graphicsCmdList()->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 }
 
 void Renderer::update()
 {
+	//Command list allocators can only be reset when the associated command lists have
+	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
+
 	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 	
 	UINT instances = (UINT)objectList.size();
 	UINT byteWidth = (UINT)sizeof(float) * 4;
 	int i = 0;
 
-	void* translationData = malloc(byteWidth * instances);
-	void* colorData = malloc(byteWidth * instances);
+	char* translationData	= (char*)malloc(byteWidth * instances);
+	char* colorData			= (char*)malloc(byteWidth * instances);
 
 	for (Object* obj : this->objectList)
 	{
 		obj->update();
 
-		UINT offset = i * byteWidth;;
+		UINT offset = i * byteWidth;
 
-		memcpy(static_cast<char*>(translationData) + offset,
-			&obj->GETTranslationBufferData(), byteWidth);
-		memcpy(static_cast<char*>(colorData) + offset,
-			&obj->GETColorBufferData(), byteWidth);
+		memcpy(
+			translationData + offset,
+			&obj->GETTranslationBufferData(), 
+			byteWidth);
+
+		memcpy(
+			colorData + offset,
+			&obj->GETColorBufferData(), 
+			byteWidth);
 
 		i++;
 	}
 
-	//Update GPU memory
-	void* mappedMem = nullptr;
-	D3D12_RANGE writeRange = { 0, byteWidth * instances };
-	this->constantBufferResource[CONST_TRANSLATION_INDEX]->Map(0, nullptr, &mappedMem);
-	memcpy(mappedMem, translationData, byteWidth * instances);
-	this->constantBufferResource[CONST_TRANSLATION_INDEX]->Unmap(0, &writeRange);
-	
-	this->constantBufferResource[CONST_COLOR_INDEX]->Map(0, nullptr, &mappedMem);
-	memcpy(mappedMem, colorData, byteWidth * instances);
-	this->constantBufferResource[CONST_COLOR_INDEX]->Unmap(0, &writeRange);
-	   
+	m_constantBufferResource[0].SetData(colorData);
+	m_constantBufferResource[1].SetData(translationData);
+
 	free(translationData);
 	free(colorData);
 }
@@ -167,24 +240,22 @@ void Renderer::render()
 	this->fillLists();
 
 	//Indicate that the back buffer will now be used to present.
-	SetResourceTransitionBarrier(commandList4,
+	SetResourceTransitionBarrier(m_graphicsCmdList(),
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
 		D3D12_RESOURCE_STATE_PRESENT		//state after
 	);
 
 	//Close the list to prepare it for execution.
-	commandList4->Close();
+	m_graphicsCmdList()->Close();
 
 	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { commandList4 };
-	commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
+	m_graphicsCmdQueue.ExecuteCmdList(listsToExecute, ARRAYSIZE(listsToExecute));
 
 	//Present the frame.
 	DXGI_PRESENT_PARAMETERS pp = {};
 	swapChain4->Present1(0, 0, &pp);
-
-	//int asgsdg = swapChain4->GetCurrentBackBufferIndex();
 
 	WaitForGpu(); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.
@@ -193,14 +264,12 @@ void Renderer::render()
 void Renderer::fillLists()
 {
 	UINT instances = (UINT)objectList.size();
-	commandList4->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	
-	for (Object* obj : this->objectList)
-	{
-		obj->addToCommList(this->commandList4);	
-	}
+	m_graphicsCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-	commandList4->DrawInstanced(4, instances, 0, 0);
+
+	objectList[0]->addToCommList(m_graphicsCmdList());
+
+	m_graphicsCmdList()->DrawInstanced(4, instances, 0, 0);
 }
 
 void Renderer::SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource,
@@ -225,7 +294,7 @@ void Renderer::WaitForGpu()
 
 //Signal and increment the fence value.
 	const UINT64 fence = fenceValue;
-	commandQueue->Signal(this->fence, fence);
+	m_graphicsCmdQueue()->Signal(this->fence, fence);
 	fenceValue++;
 
 	//Wait until command queue is done.
@@ -236,29 +305,8 @@ void Renderer::WaitForGpu()
 	}
 }
 
-void Renderer::CreateDirect3DDevice(HWND wndHandle)
+void Renderer::CreateDirect3DDevice()
 {
-#ifdef _DEBUG
-	//Enable the D3D12 debug layer.
-	ID3D12Debug* debugController = nullptr;
-
-#ifdef STATIC_LINK_DEBUGSTUFF
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
-	{
-		debugController->EnableDebugLayer();
-	}
-	SafeRelease(debugController);
-#else
-	HMODULE mD3D12 = GetModuleHandle("D3D12.dll");
-	PFN_D3D12_GET_DEBUG_INTERFACE f = (PFN_D3D12_GET_DEBUG_INTERFACE)GetProcAddress(mD3D12, "D3D12GetDebugInterface");
-	if (SUCCEEDED(f(IID_PPV_ARGS(&debugController))))
-	{
-		debugController->EnableDebugLayer();
-	}
-	SafeRelease(&debugController);
-#endif
-#endif
-
 	//dxgi1_6 is only needed for the initialization process using the adapter.
 	IDXGIFactory6*	factory = nullptr;
 	IDXGIAdapter1*	adapter = nullptr;
@@ -280,15 +328,10 @@ void Renderer::CreateDirect3DDevice(HWND wndHandle)
 
 		SafeRelease(&adapter);
 	}
+
 	if (adapter)
 	{
-		HRESULT hr = S_OK;
-		//Create the actual device.
-		if (SUCCEEDED(hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&device4))))
-		{
-
-		}
-
+		D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&device4));
 		SafeRelease(&adapter);
 	}
 	else
@@ -303,25 +346,19 @@ void Renderer::CreateDirect3DDevice(HWND wndHandle)
 
 void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 {
-	//Describe and create the command queue.
-	D3D12_COMMAND_QUEUE_DESC cqd = {};
-	device4->CreateCommandQueue(&cqd, IID_PPV_ARGS(&commandQueue));
-
-	//Create command allocator. The command allocator object corresponds
-	//to the underlying allocations in which GPU commands are stored.
-	device4->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
-
-	//Create command list.
-	device4->CreateCommandList(
-		0,
+	m_graphicsCmdQueue.Initialize(
+		device4,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		commandAllocator,
-		nullptr,
-		IID_PPV_ARGS(&commandList4));
+		D3D12_COMMAND_QUEUE_PRIORITY_NORMAL);
 
-	//Command lists are created in the recording state. Since there is nothing to
-	//record right now and the main loop expects it to be closed, we close it.
-	commandList4->Close();
+	m_graphicsCmdAllocator.Initialize(
+		device4,
+		D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+	m_graphicsCmdList.Initialize(
+		device4,
+		m_graphicsCmdAllocator(),
+		D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	IDXGIFactory5*	factory = nullptr;
 	CreateDXGIFactory(IID_PPV_ARGS(&factory));
@@ -343,7 +380,7 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 
 	IDXGISwapChain1* swapChain1 = nullptr;
 	if (SUCCEEDED(factory->CreateSwapChainForHwnd(
-		commandQueue,
+		m_graphicsCmdQueue(),
 		wndHandle,
 		&scDesc,
 		nullptr,
@@ -406,37 +443,6 @@ void Renderer::CreateViewportAndScissorRect()
 
 void Renderer::CreateShadersAndPiplelineState()
 {
-	////// Shader Compiles //////
-	ID3DBlob* vertexBlob;
-	D3DCompileFromFile(
-		L"VertexShader.hlsl", // filename
-		nullptr,		// optional macros
-		nullptr,		// optional include files
-		"main",		// entry point
-		"vs_5_0",		// shader model (target)
-		0,				// shader compile options			// here DEBUGGING OPTIONS
-		0,				// effect compile options
-		&vertexBlob,	// double pointer to ID3DBlob		
-		nullptr			// pointer for Error Blob messages.
-						// how to use the Error blob, see here
-						// https://msdn.microsoft.com/en-us/library/windows/desktop/hh968107(v=vs.85).aspx
-	);
-
-	ID3DBlob* pixelBlob;
-	D3DCompileFromFile(
-		L"PixelShader.hlsl", // filename
-		nullptr,		// optional macros
-		nullptr,		// optional include files
-		"main",		// entry point
-		"ps_5_0",		// shader model (target)
-		0,				// shader compile options			// here DEBUGGING OPTIONS
-		0,				// effect compile options
-		&pixelBlob,		// double pointer to ID3DBlob		
-		nullptr			// pointer for Error Blob messages.
-						// how to use the Error blob, see here
-						// https://msdn.microsoft.com/en-us/library/windows/desktop/hh968107(v=vs.85).aspx
-	);
-
 	////// Input Layout //////
 	D3D12_INPUT_ELEMENT_DESC inputElementDesc[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -447,78 +453,26 @@ void Renderer::CreateShadersAndPiplelineState()
 	inputLayoutDesc.pInputElementDescs = inputElementDesc;
 	inputLayoutDesc.NumElements = ARRAYSIZE(inputElementDesc);
 
-	////// Depth Stencil Description //////
-	const D3D12_DEPTH_STENCILOP_DESC defStencilOP =
-	{
-		D3D12_STENCIL_OP_KEEP,
-		D3D12_STENCIL_OP_KEEP,
-		D3D12_STENCIL_OP_KEEP,
-		D3D12_COMPARISON_FUNC_ALWAYS
-	};
-	D3D12_DEPTH_STENCIL_DESC dsDesc = { };
-	dsDesc.DepthEnable = TRUE;
-	dsDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	dsDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-	dsDesc.StencilEnable = FALSE;
-	dsDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
-	dsDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
-	dsDesc.FrontFace = defStencilOP;
-	dsDesc.BackFace = defStencilOP;
-
-	////// Pipline State //////
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsd = {};
-
-	//Specify pipeline stages:
-	gpsd.pRootSignature = rootSignature;
-	gpsd.InputLayout = inputLayoutDesc;
-	gpsd.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	gpsd.VS.pShaderBytecode = reinterpret_cast<void*>(vertexBlob->GetBufferPointer());
-	gpsd.VS.BytecodeLength = vertexBlob->GetBufferSize();
-	gpsd.PS.pShaderBytecode = reinterpret_cast<void*>(pixelBlob->GetBufferPointer());
-	gpsd.PS.BytecodeLength = pixelBlob->GetBufferSize();
-
-	//Specify render target and depthstencil usage.
-	gpsd.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	gpsd.NumRenderTargets = 1;
-
-	gpsd.DepthStencilState = dsDesc;
-	gpsd.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-
-	gpsd.SampleDesc.Count = 1;
-	gpsd.SampleMask = UINT_MAX;
-
-	//Specify rasterizer behaviour.
-	gpsd.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	gpsd.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-
-	//Specify blend descriptions.
-	D3D12_RENDER_TARGET_BLEND_DESC defaultRTdesc = {
-		false, false,
-		D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-		D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-		D3D12_LOGIC_OP_NOOP, D3D12_COLOR_WRITE_ENABLE_ALL };
-	for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; i++)
-		gpsd.BlendState.RenderTarget[i] = defaultRTdesc;
-
-	device4->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(&pipeLineState));
+	m_pipelineState.SetInputLayout(inputLayoutDesc);
+	m_pipelineState.SetVertexShader("VertexShader.hlsl");
+	m_pipelineState.SetPixelShader("PixelShader.hlsl");
+	m_pipelineState.SetPrimitiveToplogy(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+	m_pipelineState.Compile(device4, rootSignature);
 }
 
 void Renderer::CreateRootSignature()
 {
 	//define descriptor range(s)
 	D3D12_DESCRIPTOR_RANGE  dtRanges[2];
-	
-	//Color buffer
 	dtRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	dtRanges[0].NumDescriptors = 1; //only one CB in this example
 	dtRanges[0].BaseShaderRegister = 0; //register b0
 	dtRanges[0].RegisterSpace = 0; //register(b0,space0);
 	dtRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	
-	//Translation buffer
 	dtRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	dtRanges[1].NumDescriptors = 1; //only one CB in this example
-	dtRanges[1].BaseShaderRegister = 1; //register b1
+	dtRanges[1].BaseShaderRegister = 1; //register b0
 	dtRanges[1].RegisterSpace = 0; //register(b0,space0);
 	dtRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
@@ -556,56 +510,31 @@ void Renderer::CreateRootSignature()
 
 void Renderer::CreateConstantBufferResources()
 {
-	//for (int i = 0; i < NUM_CONST_BUFFERS; i++)
-	//{
-	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
-	heapDescriptorDesc.NumDescriptors = NUM_CONST_BUFFERS;
-	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	device4->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&descriptorHeapConstBuffers));
-	//}
+	UINT cbSize = (sizeof(ConstantBuffer) + 255) & ~255;	// 256-byte aligned CB.
 
-	UINT constBuffersSize = device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	D3D12_CPU_DESCRIPTOR_HANDLE cdh = descriptorHeapConstBuffers->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
+	desc.SizeInBytes = cbSize;
 
-	UINT cbSizeAligned = (sizeof(ConstantBuffer) + 255) & ~255;	// 256-byte aligned CB.
+	m_constantBufferHeap.Initialize(
+		device4,
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		NUM_CONST_BUFFERS);
 
-	D3D12_HEAP_PROPERTIES heapProperties = {};
-	heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
-	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapProperties.CreationNodeMask = 1; //used when multi-gpu
-	heapProperties.VisibleNodeMask = 1; //used when multi-gpu
-	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuAddress = 
+		m_constantBufferHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
-	D3D12_RESOURCE_DESC resourceDesc = {};
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resourceDesc.Width = cbSizeAligned;
-	resourceDesc.Height = 1;
-	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.MipLevels = 1;
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-	//Create a resource heap, descriptor heap, and pointer to cbv for each frame
-	for (int i = 0; i < NUM_CONST_BUFFERS; i++)
+	for (unsigned int i = 0; i < NUM_CONST_BUFFERS; i++)
 	{
-		device4->CreateCommittedResource(
-			&heapProperties,
+		m_constantBufferResource[i].Initialize(
+			device4,
+			cbSize,
 			D3D12_HEAP_FLAG_NONE,
-			&resourceDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&constantBufferResource[i])
-		);
+			D3D12_RESOURCE_STATE_GENERIC_READ);
 
-		constantBufferResource[i]->SetName(L"cb heap");
-
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-		cbvDesc.BufferLocation = constantBufferResource[i]->GetGPUVirtualAddress();
-		cbvDesc.SizeInBytes = cbSizeAligned;
-		device4->CreateConstantBufferView(&cbvDesc, cdh);
-
-		cdh.ptr += constBuffersSize;
+		desc.BufferLocation = m_constantBufferResource[i].mp_resource->GetGPUVirtualAddress();
+		
+		device4->CreateConstantBufferView(&desc, cpuAddress);
+		cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
 }
 
@@ -654,11 +583,12 @@ void Renderer::CreateDepthStencil()
 		&dsResourceDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&depthOptClearValue,
-		IID_PPV_ARGS(&this->depthStencilBuffer)
-	);
+		IID_PPV_ARGS(&this->depthStencilBuffer));
 
 	this->dsDescriptorHeap->SetName(L"DepthStencil Resource Heap");
 
-	this->device4->CreateDepthStencilView(this->depthStencilBuffer, &dsStencilViewDesc, this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
+	this->device4->CreateDepthStencilView(
+		this->depthStencilBuffer, 
+		&dsStencilViewDesc, 
+		this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 }
