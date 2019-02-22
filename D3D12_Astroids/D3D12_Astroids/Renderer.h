@@ -56,7 +56,6 @@ private:
 	void CreateUnorderedAccessResources();
 	void CreateDepthStencil();
 
-	MSG msg = { 0 };
 	HWND hwnd;
 
 	HRESULT hr;

@@ -160,6 +160,9 @@ void Renderer::startGame()
 
 void Renderer::ready()
 {
+	WaitForGpu(m_graphicsCmdQueue()); //Wait for GPU to finish.
+				  //NOT BEST PRACTICE, only used as such for simplicity.
+
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
 	m_graphicsCmdAllocator()->Reset();
@@ -196,8 +199,13 @@ void Renderer::ready()
 
 	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	m_graphicsCmdList()->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
-	m_graphicsCmdList()->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
+	m_graphicsCmdList()->ClearDepthStencilView(
+		this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), 
+		D3D12_CLEAR_FLAG_DEPTH, 
+		1.0f, 
+		0, 
+		0, 
+		nullptr);
 }
 
 void Renderer::update()
@@ -263,13 +271,12 @@ void Renderer::render()
 	//Present the frame.
 	DXGI_PRESENT_PARAMETERS pp = {};
 	swapChain4->Present1(0, 0, &pp);
-
-	WaitForGpu(m_graphicsCmdQueue()); //Wait for GPU to finish.
-				  //NOT BEST PRACTICE, only used as such for simplicity.
 }
 
 void Renderer::RunComputeShader()
 {
+	WaitForGpu(m_computeCmdQueue());
+
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
 	m_computeCmdAllocator()->Reset();
@@ -283,6 +290,8 @@ void Renderer::RunComputeShader()
 		1,
 		m_uavResource.mp_resource->GetGPUVirtualAddress());
 
+	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
+
 	m_computeCmdList()->Dispatch(1, 1, 1);
 
 	m_computeCmdList()->Close();
@@ -290,8 +299,6 @@ void Renderer::RunComputeShader()
 	//Execute the command list.
 	ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
 	m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
-
-	WaitForGpu(m_computeCmdQueue());
 }
 
 void Renderer::fillLists()
