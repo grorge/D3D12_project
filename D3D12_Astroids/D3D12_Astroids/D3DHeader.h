@@ -52,3 +52,22 @@ inline void printToDebug(const int number, ...)
 
 	OutputDebugString(szBuff);
 }
+inline void printToDebug(const char* textToAdd, const int number, ...)
+{
+	std::string strText(textToAdd);
+	std::string strNumb(std::to_string(number));
+	
+
+	std::string str = strText + strNumb + "\n";
+
+
+
+	const char* text = str.c_str();
+	char szBuff[1024];
+	va_list arg;
+	va_start(arg, text);
+	_vsnprintf_s(szBuff, sizeof(szBuff), text, arg);
+	va_end(arg);
+
+	OutputDebugString(szBuff);
+}

@@ -34,6 +34,7 @@ public:
 
 	void init(HWND hwnd);
 	void startGame();
+	void joinThreads();
 
 	void clearAndReady();
 	void update();

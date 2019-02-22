@@ -46,10 +46,7 @@ Renderer::~Renderer()
 	//Wait for GPU execution to be done and then release all interfaces.
 	//WaitForGpu(0);
 	
-	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
-	{
-		frameThreads[i]->join();
-	}
+
 
 
 	SafeRelease(&device4);		
@@ -176,6 +173,15 @@ void Renderer::startGame()
 
 	WaitForGpu(0);
 	upload.Destroy();
+}
+
+void Renderer::joinThreads()
+{
+	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+	{
+		frameThreads[i]->join();
+	}
+
 }
 
 void Renderer::clearAndReady()
@@ -305,12 +311,10 @@ void Renderer::render(int threadID)
 {
 	while (true)
 	{
-		while (threadID != 0)	{}
-		//while (threadID != swapChain4->GetCurrentBackBufferIndex())	{}
+		//while (threadID != 0)	{}
+		while (threadID != swapChain4->GetCurrentBackBufferIndex())	{}
 
-		printToDebug("ID: ");
-		printToDebug(threadID);
-		printToDebug("\n");
+		printToDebug("ID: ", threadID);
 
 		this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 
@@ -320,19 +324,19 @@ void Renderer::render(int threadID)
 
 		this->fillLists();
 
-	//Indicate that the back buffer will now be used to present.
-	SetResourceTransitionBarrier(m_graphicsCmdList[this->backBufferIndex](),
-		renderTargets[backBufferIndex],
-		D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
-		D3D12_RESOURCE_STATE_PRESENT		//state after
-	);
+		//Indicate that the back buffer will now be used to present.
+		SetResourceTransitionBarrier(m_graphicsCmdList[this->backBufferIndex](),
+			renderTargets[backBufferIndex],
+			D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
+			D3D12_RESOURCE_STATE_PRESENT		//state after
+		);
 
-	//Close the list to prepare it for execution.
-	m_graphicsCmdList[this->backBufferIndex]()->Close();
+		//Close the list to prepare it for execution.
+		m_graphicsCmdList[this->backBufferIndex]()->Close();
 
-	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList[this->backBufferIndex]() };
-	m_graphicsCmdQueue.ExecuteCmdList(listsToExecute, ARRAYSIZE(listsToExecute));
+		//Execute the command list.
+		ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList[this->backBufferIndex]() };
+		m_graphicsCmdQueue.ExecuteCmdList(listsToExecute, ARRAYSIZE(listsToExecute));
 
 
 		//while (this->working != threadID/* || (working == 4 && threadID == 0)*/)
@@ -344,9 +348,7 @@ void Renderer::render(int threadID)
 		swapChain4->Present1(0, 0, &pp);
 
 
-		//printToDebug("BBI: ");
-		//printToDebug(swapChain4->GetCurrentBackBufferIndex());
-		//printToDebug("\n");
+		//printToDebug("BBI: ", swapChain4->GetCurrentBackBufferIndex());
 
 		WaitForGpu(threadID); //Wait for GPU to finish.
 					  //NOT BEST PRACTICE, only used as such for simplicity.
@@ -401,9 +403,7 @@ void Renderer::WaitForGpu(int threadID)
 		WaitForSingleObject(eventHandle, INFINITE);
 		working++;
 		working %= (NUM_SWAP_BUFFERS);
-		printToDebug("working: ");
-		printToDebug(this->working);
-		printToDebug("\n");
+		printToDebug("working: ", this->working);
 	}
 }
 
