@@ -55,20 +55,20 @@ Renderer::~Renderer()
 	SafeRelease(&device4);		
 	SafeRelease(&swapChain4);
 
-		CloseHandle(eventHandle);
-		SafeRelease(&fence);
+	CloseHandle(eventHandle);
+	SafeRelease(&fence);
 
 	SafeRelease(&renderTargetsHeap);
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
-		SafeRelease(&commandAllocator[i]);
-		SafeRelease(&commandList4[i]);
+		//SafeRelease(&this->m_graphicsCmdAllocator[i]);
+		//SafeRelease(&this->m_graphicsCmdList[i]);
 		SafeRelease(&descriptorHeap[i]);
 		SafeRelease(&renderTargets[i]);
 	}
 	for (int i = 0; i < NUM_ALLOCATED_CONST_BUFFERS; i++)
 	{
-		SafeRelease(&constantBufferResource[i]);
+		//SafeRelease(&m_constantBufferResource[i]);
 	}
 
 	SafeRelease(&rootSignature);
@@ -149,69 +149,74 @@ void Renderer::startGame()
 		this->objectList.push_back(new Object(this->device4, i));
 	}
 	
-	m_graphicsCmdAllocator()->Reset();
-	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), nullptr);
+	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+	{
+		m_graphicsCmdAllocator[i]()->Reset();
+		m_graphicsCmdList[i]()->Reset(m_graphicsCmdAllocator[i](), nullptr);
 
-	UploadResourceToDefault(
-		&this->objectList[0]->m_resource,
-		&upload,
-		m_graphicsCmdList());
+		UploadResourceToDefault(
+			&this->objectList[0]->m_resource,
+			&upload,
+			m_graphicsCmdList[i]());
 
-	//Close the list to prepare it for execution.
-	m_graphicsCmdList()->Close();
+		//Close the list to prepare it for execution.
+		m_graphicsCmdList[i]()->Close();
 
-	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
-	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		//Execute the command list.
+		ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList[i]() };
+		m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
-	WaitForGpu();
-	upload.Destroy();
-}
+	}
 
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
 		//this->frameThreads[i] = new std::thread(&Renderer::render, i, this );
 		this->frameThreads[i] = new std::thread([&](Renderer* rnd) { rnd->render(i); }, this);
 	}
-void Renderer::ready()
+
+	WaitForGpu(0);
+	upload.Destroy();
+}
+
+void Renderer::clearAndReady()
 {
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	m_graphicsCmdAllocator()->Reset();
-	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), m_pipelineState.mp_pipelineState);
+	m_graphicsCmdAllocator[this->backBufferIndex]()->Reset();
+	m_graphicsCmdList[this->backBufferIndex]()->Reset(m_graphicsCmdAllocator[this->backBufferIndex](), m_pipelineState.mp_pipelineState);
 
 	//Indicate that the back buffer will be used as render target.
-	SetResourceTransitionBarrier(m_graphicsCmdList(),
+	SetResourceTransitionBarrier(m_graphicsCmdList[this->backBufferIndex](),
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_PRESENT,		//state before
 		D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
 	);
 	//Set constant buffer descriptor heap
 	ID3D12DescriptorHeap* descriptorHeaps[] = { m_constantBufferHeap.mp_descriptorHeap };
-	m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+	m_graphicsCmdList[this->backBufferIndex]()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 
 	//Set root signature
-	m_graphicsCmdList()->SetGraphicsRootSignature(rootSignature);
+	m_graphicsCmdList[this->backBufferIndex]()->SetGraphicsRootSignature(rootSignature);
 
 	//Set root descriptor table to index 0 in previously set root signature
-	m_graphicsCmdList()->SetGraphicsRootDescriptorTable(
+	m_graphicsCmdList[this->backBufferIndex]()->SetGraphicsRootDescriptorTable(
 		0, 
 		m_constantBufferHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
 	//Set necessary states.
-	m_graphicsCmdList()->RSSetViewports(1, &viewport);
-	m_graphicsCmdList()->RSSetScissorRects(1, &scissorRect);
+	m_graphicsCmdList[this->backBufferIndex]()->RSSetViewports(1, &viewport);
+	m_graphicsCmdList[this->backBufferIndex]()->RSSetScissorRects(1, &scissorRect);
 
 	//Record commands.
 	//Get the handle for the current render target used as back buffer.
 	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
 	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
 
-	m_graphicsCmdList()->OMSetRenderTargets(1, &cdh, true, nullptr);
+	m_graphicsCmdList[this->backBufferIndex]()->OMSetRenderTargets(1, &cdh, true, nullptr);
 
 	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-	m_graphicsCmdList()->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
-	m_graphicsCmdList()->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	m_graphicsCmdList[this->backBufferIndex]()->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
+	m_graphicsCmdList[this->backBufferIndex]()->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 }
 
@@ -255,45 +260,45 @@ void Renderer::update()
 	free(colorData);
 }
 
-void Renderer::clearAndReady()
-{
-	//Command list allocators can only be reset when the associated command lists have
-	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	commandAllocator[this->backBufferIndex]->Reset();
-	commandList4[this->backBufferIndex]->Reset(commandAllocator[this->backBufferIndex], pipeLineState);
-
-	//Indicate that the back buffer will be used as render target.
-	SetResourceTransitionBarrier(commandList4[this->backBufferIndex],
-		renderTargets[backBufferIndex],
-		D3D12_RESOURCE_STATE_PRESENT,		//state before
-		D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
-	);
-	//Set constant buffer descriptor heap
-	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeapConstBuffers };
-	commandList4[this->backBufferIndex]->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
-
-	//Set root signature
-	commandList4[this->backBufferIndex]->SetGraphicsRootSignature(rootSignature);
-
-	//Set root descriptor table to index 0 in previously set root signature
-	commandList4[this->backBufferIndex]->SetGraphicsRootDescriptorTable(0, descriptorHeapConstBuffers->GetGPUDescriptorHandleForHeapStart());
-	
-	//Set necessary states.
-	commandList4[this->backBufferIndex]->RSSetViewports(1, &viewport);
-	commandList4[this->backBufferIndex]->RSSetScissorRects(1, &scissorRect);
-
-	//Record commands.
-	//Get the handle for the current render target used as back buffer.
-	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
-	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
-
-	commandList4[this->backBufferIndex]->OMSetRenderTargets(1, &cdh, true, &this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-	commandList4[this->backBufferIndex]->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
-	this->commandList4[this->backBufferIndex]->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-}
+//void Renderer::clearAndReady()
+//{
+//	//Command list allocators can only be reset when the associated command lists have
+//	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
+//	commandAllocator[this->backBufferIndex]->Reset();
+//	commandList4[this->backBufferIndex]->Reset(commandAllocator[this->backBufferIndex], pipeLineState);
+//
+//	//Indicate that the back buffer will be used as render target.
+//	SetResourceTransitionBarrier(commandList4[this->backBufferIndex],
+//		renderTargets[backBufferIndex],
+//		D3D12_RESOURCE_STATE_PRESENT,		//state before
+//		D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
+//	);
+//	//Set constant buffer descriptor heap
+//	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeapConstBuffers };
+//	commandList4[this->backBufferIndex]->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+//
+//	//Set root signature
+//	commandList4[this->backBufferIndex]->SetGraphicsRootSignature(rootSignature);
+//
+//	//Set root descriptor table to index 0 in previously set root signature
+//	commandList4[this->backBufferIndex]->SetGraphicsRootDescriptorTable(0, descriptorHeapConstBuffers->GetGPUDescriptorHandleForHeapStart());
+//	
+//	//Set necessary states.
+//	commandList4[this->backBufferIndex]->RSSetViewports(1, &viewport);
+//	commandList4[this->backBufferIndex]->RSSetScissorRects(1, &scissorRect);
+//
+//	//Record commands.
+//	//Get the handle for the current render target used as back buffer.
+//	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
+//	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
+//
+//	commandList4[this->backBufferIndex]->OMSetRenderTargets(1, &cdh, true, &this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+//
+//	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+//	commandList4[this->backBufferIndex]->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
+//	this->commandList4[this->backBufferIndex]->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+//
+//}
 
 
 void Renderer::render(int threadID)
@@ -316,17 +321,17 @@ void Renderer::render(int threadID)
 		this->fillLists();
 
 	//Indicate that the back buffer will now be used to present.
-	SetResourceTransitionBarrier(m_graphicsCmdList(),
+	SetResourceTransitionBarrier(m_graphicsCmdList[this->backBufferIndex](),
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
 		D3D12_RESOURCE_STATE_PRESENT		//state after
 	);
 
 	//Close the list to prepare it for execution.
-	m_graphicsCmdList()->Close();
+	m_graphicsCmdList[this->backBufferIndex]()->Close();
 
 	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
+	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList[this->backBufferIndex]() };
 	m_graphicsCmdQueue.ExecuteCmdList(listsToExecute, ARRAYSIZE(listsToExecute));
 
 
@@ -353,12 +358,12 @@ void Renderer::render(int threadID)
 void Renderer::fillLists()
 {
 	UINT instances = (UINT)objectList.size();
-	m_graphicsCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	m_graphicsCmdList[this->backBufferIndex]()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 
-	objectList[0]->addToCommList(m_graphicsCmdList());
+	objectList[0]->addToCommList(m_graphicsCmdList[this->backBufferIndex]());
 
-	m_graphicsCmdList()->DrawInstanced(4, instances, 0, 0);
+	m_graphicsCmdList[this->backBufferIndex]()->DrawInstanced(4, instances, 0, 0);
 }
 
 void Renderer::SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource,
@@ -448,28 +453,21 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		D3D12_COMMAND_QUEUE_PRIORITY_NORMAL);
 
-	m_graphicsCmdAllocator.Initialize(
-		device4,
-		D3D12_COMMAND_LIST_TYPE_DIRECT);
 	//Create command list.
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
-		device4->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator[i]));
+		m_graphicsCmdAllocator[i].Initialize(
+			device4,
+			D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		device4->CreateCommandList(
-			0,
-			D3D12_COMMAND_LIST_TYPE_DIRECT,
-			commandAllocator[i],
-			nullptr,
-			IID_PPV_ARGS(&commandList4[i]));
 
-	m_graphicsCmdList.Initialize(
-		device4,
-		m_graphicsCmdAllocator(),
-		D3D12_COMMAND_LIST_TYPE_DIRECT);
+		m_graphicsCmdList[i].Initialize(
+			device4,
+			m_graphicsCmdAllocator[i](),
+			D3D12_COMMAND_LIST_TYPE_DIRECT);
 		//Command lists are created in the recording state. Since there is nothing to
 		//record right now and the main loop expects it to be closed, we close it.
-		commandList4[i]->Close();
+		m_graphicsCmdList[i]()->Close();
 	}
 
 
@@ -634,7 +632,7 @@ void Renderer::CreateConstantBufferResources()
 	m_constantBufferHeap.Initialize(
 		device4,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		NUM_CONST_BUFFERS);
+		NUM_ALLOCATED_CONST_BUFFERS);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuAddress = 
 		m_constantBufferHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart();

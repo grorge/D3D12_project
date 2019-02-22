@@ -68,13 +68,13 @@ private:
 	UINT backBufferIndex = 0;
 
 	CommandQueue m_graphicsCmdQueue;
-	CommandAllocator m_graphicsCmdAllocator;
-	CommandList m_graphicsCmdList;
+	CommandAllocator m_graphicsCmdAllocator[NUM_SWAP_BUFFERS];
+	CommandList m_graphicsCmdList[NUM_SWAP_BUFFERS];
 
 	GraphicsPipelineState m_pipelineState;
 
 	DescriptorHeap m_constantBufferHeap;
-	UploadResource m_constantBufferResource[NUM_CONST_BUFFERS];
+	UploadResource m_constantBufferResource[NUM_ALLOCATED_CONST_BUFFERS];
 
 	IDXGISwapChain4*			swapChain4 = nullptr;
 
