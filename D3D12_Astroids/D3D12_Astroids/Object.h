@@ -27,9 +27,7 @@ public:
 
 private:
 	void CreateTriangleData(ID3D12Device4* device4);
-	void CreateConstantBufferResources();
 
-	ID3D12Device4*				device4Reff = nullptr;
 	ID3D12Resource1*			vertexBufferResource = nullptr;
 	D3D12_VERTEX_BUFFER_VIEW	vertexBufferView = {};
 
