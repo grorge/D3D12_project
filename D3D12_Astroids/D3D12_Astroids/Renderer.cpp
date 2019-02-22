@@ -44,7 +44,9 @@ Renderer::Renderer()
 Renderer::~Renderer()
 {
 	//Wait for GPU execution to be done and then release all interfaces.
-	WaitForGpu();
+	this->WaitForGpu(m_graphicsCmdQueue());
+	this->WaitForGpu(m_computeCmdQueue());
+
 	CloseHandle(eventHandle);
 	SafeRelease(&device4);		
 	SafeRelease(&swapChain4);
@@ -91,10 +93,14 @@ void Renderer::init(HWND hwnd)
 
 	this->CreateConstantBufferResources();					//9. Create constant buffer data
 
+	this->CreateUnorderedAccessResources();
+
 	this->CreateDepthStencil();
 	//CreateTriangleData();
 
-	this->WaitForGpu();
+
+	this->WaitForGpu(m_graphicsCmdQueue());
+	this->WaitForGpu(m_computeCmdQueue());
 }
 
 void Renderer::startGame()
@@ -121,7 +127,8 @@ void Renderer::startGame()
 		device4,
 		byteWidth,
 		D3D12_HEAP_FLAG_NONE,
-		D3D12_RESOURCE_STATE_GENERIC_READ);
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_FLAG_NONE);
 
 	upload.SetData(triangleVertices);
 
@@ -147,7 +154,7 @@ void Renderer::startGame()
 	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
 	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
-	WaitForGpu();
+	WaitForGpu(m_graphicsCmdQueue());
 	upload.Destroy();
 }
 
@@ -156,7 +163,7 @@ void Renderer::ready()
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
 	m_graphicsCmdAllocator()->Reset();
-	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), m_pipelineState.mp_pipelineState);
+	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), m_graphicsState.mp_pipelineState);
 
 	//Indicate that the back buffer will be used as render target.
 	SetResourceTransitionBarrier(m_graphicsCmdList(),
@@ -251,14 +258,40 @@ void Renderer::render()
 
 	//Execute the command list.
 	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
-	m_graphicsCmdQueue.ExecuteCmdList(listsToExecute, ARRAYSIZE(listsToExecute));
+	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
 	//Present the frame.
 	DXGI_PRESENT_PARAMETERS pp = {};
 	swapChain4->Present1(0, 0, &pp);
 
-	WaitForGpu(); //Wait for GPU to finish.
+	WaitForGpu(m_graphicsCmdQueue()); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.
+}
+
+void Renderer::RunComputeShader()
+{
+	//Command list allocators can only be reset when the associated command lists have
+	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
+	m_computeCmdAllocator()->Reset();
+	m_computeCmdList()->Reset(m_computeCmdAllocator(), m_computeState.mp_pipelineState);
+
+	//Set root signature
+	m_computeCmdList()->SetComputeRootSignature(rootSignature);
+
+	// Set Root Argument, Index 1
+	m_computeCmdList()->SetComputeRootUnorderedAccessView(
+		1,
+		m_uavResource.mp_resource->GetGPUVirtualAddress());
+
+	m_computeCmdList()->Dispatch(1, 1, 1);
+
+	m_computeCmdList()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
+	m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+	WaitForGpu(m_computeCmdQueue());
 }
 
 void Renderer::fillLists()
@@ -286,7 +319,7 @@ void Renderer::SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandLi
 	commandList->ResourceBarrier(1, &barrierDesc);
 }
 
-void Renderer::WaitForGpu()
+void Renderer::WaitForGpu(ID3D12CommandQueue* queue)
 {
 	//WAITING FOR EACH FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
 //This is code implemented as such for simplicity. The cpu could for example be used
@@ -294,7 +327,7 @@ void Renderer::WaitForGpu()
 
 //Signal and increment the fence value.
 	const UINT64 fence = fenceValue;
-	m_graphicsCmdQueue()->Signal(this->fence, fence);
+	queue->Signal(this->fence, fence);
 	fenceValue++;
 
 	//Wait until command queue is done.
@@ -346,6 +379,21 @@ void Renderer::CreateDirect3DDevice()
 
 void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 {
+	m_computeCmdQueue.Initialize(
+		device4,
+		D3D12_COMMAND_LIST_TYPE_COMPUTE,
+		D3D12_COMMAND_QUEUE_PRIORITY_NORMAL);
+
+	m_computeCmdAllocator.Initialize(
+		device4,
+		D3D12_COMMAND_LIST_TYPE_COMPUTE);
+
+	m_computeCmdList.Initialize(
+		device4,
+		m_computeCmdAllocator(),
+		D3D12_COMMAND_LIST_TYPE_COMPUTE);
+
+
 	m_graphicsCmdQueue.Initialize(
 		device4,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -453,11 +501,14 @@ void Renderer::CreateShadersAndPiplelineState()
 	inputLayoutDesc.pInputElementDescs = inputElementDesc;
 	inputLayoutDesc.NumElements = ARRAYSIZE(inputElementDesc);
 
-	m_pipelineState.SetInputLayout(inputLayoutDesc);
-	m_pipelineState.SetVertexShader("VertexShader.hlsl");
-	m_pipelineState.SetPixelShader("PixelShader.hlsl");
-	m_pipelineState.SetPrimitiveToplogy(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-	m_pipelineState.Compile(device4, rootSignature);
+	m_graphicsState.SetInputLayout(inputLayoutDesc);
+	m_graphicsState.SetVertexShader("VertexShader.hlsl");
+	m_graphicsState.SetPixelShader("PixelShader.hlsl");
+	m_graphicsState.SetPrimitiveToplogy(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+	m_graphicsState.Compile(device4, rootSignature);
+
+	m_computeState.SetComputeShader("ComputeShader.hlsl");
+	m_computeState.Compile(device4, rootSignature);
 }
 
 void Renderer::CreateRootSignature()
@@ -482,10 +533,23 @@ void Renderer::CreateRootSignature()
 	dt.pDescriptorRanges = dtRanges;
 
 	//create root parameter
-	D3D12_ROOT_PARAMETER  rootParam[1];
+	D3D12_ROOT_PARAMETER  rootParam[2];
 	rootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[0].DescriptorTable = dt;
 	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+
+
+
+	//create a descriptor table
+	D3D12_ROOT_DESCRIPTOR uavDesc;
+	uavDesc.RegisterSpace = 0;
+	uavDesc.ShaderRegister = 0;
+
+	//create root parameter
+	rootParam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+	rootParam[1].Descriptor = uavDesc;
+	rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -529,13 +593,50 @@ void Renderer::CreateConstantBufferResources()
 			device4,
 			cbSize,
 			D3D12_HEAP_FLAG_NONE,
-			D3D12_RESOURCE_STATE_GENERIC_READ);
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			D3D12_RESOURCE_FLAG_NONE);
 
 		desc.BufferLocation = m_constantBufferResource[i].mp_resource->GetGPUVirtualAddress();
 		
 		device4->CreateConstantBufferView(&desc, cpuAddress);
 		cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
+}
+
+void Renderer::CreateUnorderedAccessResources()
+{
+	UINT uavSize = (sizeof(ConstantBuffer) + 255) & ~255;	// 256-byte aligned CB.
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+
+	desc.Buffer.FirstElement = 0;
+	desc.Buffer.NumElements = 1;
+	desc.Buffer.StructureByteStride = sizeof(float);
+	desc.Buffer.CounterOffsetInBytes = 0;
+	desc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+	m_uavHeap.Initialize(
+		device4,
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		NUM_CONST_BUFFERS);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuAddress =
+		m_uavHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+	m_uavResource.Initialize(
+		device4,
+		uavSize,
+		D3D12_HEAP_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	device4->CreateUnorderedAccessView(
+		m_uavResource.mp_resource,
+		NULL,
+		&desc,
+		cpuAddress);
 }
 
 void Renderer::CreateDepthStencil()

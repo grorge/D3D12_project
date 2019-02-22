@@ -30,13 +30,6 @@ void CommandQueue::Initialize(
 	}
 }
 
-void CommandQueue::ExecuteCmdList(
-	ID3D12CommandList ** ppCmdList,
-	const UINT count)
-{
-	mp_cmdQueue->ExecuteCommandLists(count, ppCmdList);
-}
-
 void CommandQueue::Destroy()
 {
 	if (mp_cmdQueue)

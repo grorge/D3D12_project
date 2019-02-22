@@ -67,7 +67,8 @@ void Object::CreateTriangleData(
 		device4,
 		byteWidth,
 		D3D12_HEAP_FLAG_NONE,
-		D3D12_RESOURCE_STATE_COMMON);
+		D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_FLAG_NONE);
 
 	//Initialize vertex buffer view, used in the render call.
 	vertexBufferView.BufferLocation = m_resource.mp_resource->GetGPUVirtualAddress();//vertexBufferResource->GetGPUVirtualAddress();

@@ -13,10 +13,6 @@ public:
 		const D3D12_COMMAND_LIST_TYPE type,
 		const D3D12_COMMAND_QUEUE_PRIORITY priority);
 
-	void ExecuteCmdList(
-		ID3D12CommandList ** ppCmdList,
-		const UINT count);
-
 	void Destroy();
 
 	ID3D12CommandQueue* operator()();
