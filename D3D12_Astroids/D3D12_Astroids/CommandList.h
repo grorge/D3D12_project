@@ -15,7 +15,8 @@ public:
 
 	void Destroy();
 
-	ID3D12GraphicsCommandList3* mp_cmdList;
+	ID3D12GraphicsCommandList3* operator()();
 
 private:
+	ID3D12GraphicsCommandList3* mp_cmdList;
 };

@@ -14,7 +14,8 @@ public:
 
 	void Destroy();
 
-	ID3D12CommandAllocator* mp_cmdAllocator;
+	ID3D12CommandAllocator* operator()();
 
 private:
+	ID3D12CommandAllocator* mp_cmdAllocator;
 };

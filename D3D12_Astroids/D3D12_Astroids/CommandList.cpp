@@ -28,3 +28,8 @@ void CommandList::Destroy()
 		mp_cmdList = nullptr;
 	}
 }
+
+ID3D12GraphicsCommandList3 * CommandList::operator()()
+{
+	return mp_cmdList;
+}

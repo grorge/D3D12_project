@@ -25,3 +25,8 @@ void CommandAllocator::Destroy()
 		mp_cmdAllocator = nullptr;
 	}
 }
+
+ID3D12CommandAllocator * CommandAllocator::operator()()
+{
+	return mp_cmdAllocator;
+}

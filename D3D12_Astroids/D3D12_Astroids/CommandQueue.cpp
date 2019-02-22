@@ -45,3 +45,8 @@ void CommandQueue::Destroy()
 		mp_cmdQueue = nullptr;
 	}
 }
+
+ID3D12CommandQueue * CommandQueue::operator()()
+{
+	return mp_cmdQueue;
+}
