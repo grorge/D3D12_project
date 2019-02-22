@@ -18,11 +18,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	
 	Renderer* render = new Renderer();
 	render->init(wndHandle);
-	render->startGame();
 
 	if(wndHandle)
 	{
 		ShowWindow(wndHandle, nCmdShow);
+		render->startGame();
 		while(WM_QUIT != msg.message)
 		{
 			if(PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -33,7 +33,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 			else
 			{
 				//render->update();
-				//render->ready();
+				//render->clearAndReady();
 				//render->render();
 			}
 		}

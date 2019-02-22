@@ -8,17 +8,24 @@ Renderer::Renderer()
 Renderer::~Renderer()
 {
 	//Wait for GPU execution to be done and then release all interfaces.
-	WaitForGpu(0);
-	CloseHandle(eventHandle);
+	//WaitForGpu(0);
+	
+	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+	{
+		frameThreads[i]->join();
+	}
+
+
 	SafeRelease(&device4);		
 	SafeRelease(&commandQueue);
 	SafeRelease(&swapChain4);
 
+		CloseHandle(eventHandle);
+		SafeRelease(&fence);
 
 	SafeRelease(&renderTargetsHeap);
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
-		SafeRelease(&fence[i]);
 		SafeRelease(&commandAllocator[i]);
 		SafeRelease(&commandList4[i]);
 		SafeRelease(&descriptorHeap[i]);
@@ -48,6 +55,8 @@ Renderer::~Renderer()
 
 void Renderer::init(HWND hwnd)
 {
+	this->working = 0;
+
 	this->hwnd = hwnd;
 
 	this->CreateDirect3DDevice(hwnd);					//2. Create Device
@@ -70,7 +79,7 @@ void Renderer::init(HWND hwnd)
 
 	//CreateTriangleData();
 
-	this->WaitForGpu(0);
+	//this->WaitForGpu(0);
 
 
 }
@@ -132,7 +141,7 @@ void Renderer::update()
 	free(colorData);
 }
 
-void Renderer::ready()
+void Renderer::clearAndReady()
 {
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
@@ -177,18 +186,18 @@ void Renderer::render(int threadID)
 {
 	while (true)
 	{
-		while (threadID != swapChain4->GetCurrentBackBufferIndex())
-		{
+		while (threadID != 0)	{}
+		//while (threadID != swapChain4->GetCurrentBackBufferIndex())	{}
 
-		}
-		//printToDebug(threadID);
-		//printToDebug("\n");
+		printToDebug("ID: ");
+		printToDebug(threadID);
+		printToDebug("\n");
 
 		this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 
 		this->update();
 
-		this->ready();
+		this->clearAndReady();
 
 		this->fillLists();
 
@@ -206,10 +215,17 @@ void Renderer::render(int threadID)
 		ID3D12CommandList* listsToExecute[] = { commandList4[this->backBufferIndex] };
 		commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
+
+		//while (this->working != threadID/* || (working == 4 && threadID == 0)*/)
+		//{
+
+		//}
 		//Present the frame.
 		DXGI_PRESENT_PARAMETERS pp = {};
 		swapChain4->Present1(0, 0, &pp);
 
+
+		//printToDebug("BBI: ");
 		//printToDebug(swapChain4->GetCurrentBackBufferIndex());
 		//printToDebug("\n");
 
@@ -249,22 +265,28 @@ void Renderer::SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandLi
 
 void Renderer::WaitForGpu(int threadID)
 {
-	int i = threadID;
+	//int i = threadID;
+	int i = 0;
 	//WAITING FOR EACH FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
 //This is code implemented as such for simplicity. The cpu could for example be used
 //for other tasks to prepare the next frame while the current one is being rendered.
 
 //Signal and increment the fence value.
-	const UINT64 fence = fenceValue[i];
-	commandQueue->Signal(this->fence[i], fence);
-	fenceValue[i]++;
-
+	const UINT64 fence = fenceValue;
+	commandQueue->Signal(this->fence, fence);
+	fenceValue++;
 	//Wait until command queue is done.
-//	if (this->fence->GetCompletedValue() < fence)
-	if (fence > this->fence[i]->GetCompletedValue() + NUM_SWAP_BUFFERS)
+	//int test = this->fence->GetCompletedValue();
+	//if (fence > test)
+	if (this->fence->GetCompletedValue() < fence)
 	{
-		this->fence[i]->SetEventOnCompletion(fence, eventHandle);
+		this->fence->SetEventOnCompletion(fence, eventHandle);
 		WaitForSingleObject(eventHandle, INFINITE);
+		working++;
+		working %= (NUM_SWAP_BUFFERS);
+		printToDebug("working: ");
+		printToDebug(this->working);
+		printToDebug("\n");
 	}
 }
 
@@ -400,10 +422,10 @@ void Renderer::CreateFenceAndEventHandle()
 {
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
-		device4->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence[i]));
-		fenceValue[i] = 1;
+		device4->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
+		fenceValue = 1;
 		//Create an event handle to use for GPU synchronization.
-		eventHandle[i] = CreateEvent(0, false, false, 0);
+		eventHandle = CreateEvent(0, false, false, 0);
 	}
 }
 

@@ -26,7 +26,7 @@ public:
 	void init(HWND hwnd);
 	void startGame();
 
-	void ready();
+	void clearAndReady();
 	void update();
 	//void render();
 	void render(int threadID);
@@ -47,7 +47,7 @@ private:
 	void CreateDepthStencil();
 
 	std::thread* frameThreads[NUM_SWAP_BUFFERS];
-	//int working
+	int working = 0;
 
 	MSG msg = { 0 };
 	HWND hwnd;
@@ -62,9 +62,12 @@ private:
 	ID3D12CommandAllocator*		commandAllocator[NUM_SWAP_BUFFERS] = {};
 	IDXGISwapChain4*			swapChain4 = nullptr;
 
-	ID3D12Fence1*				fence[NUM_SWAP_BUFFERS] = {};
-	HANDLE						eventHandle[NUM_SWAP_BUFFERS] = {};
-	UINT64						fenceValue[NUM_SWAP_BUFFERS] = {};
+	ID3D12Fence1*				fence = {};
+	HANDLE						eventHandle = {};
+	UINT64						fenceValue = {};
+	//ID3D12Fence1*				fence[NUM_SWAP_BUFFERS] = {};
+	//HANDLE						eventHandle[NUM_SWAP_BUFFERS] = {};
+	//UINT64						fenceValue[NUM_SWAP_BUFFERS] = {};
 
 	ID3D12DescriptorHeap*		renderTargetsHeap = nullptr;
 	ID3D12Resource1*			renderTargets[NUM_SWAP_BUFFERS] = {};
