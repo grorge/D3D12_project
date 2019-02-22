@@ -204,8 +204,8 @@ void Renderer::update()
 	UINT byteWidth = (UINT)sizeof(float) * 4;
 	int i = 0;
 
-	void* translationData	= malloc(byteWidth * instances);
-	void* colorData			= malloc(byteWidth * instances);
+	char* translationData	= (char*)malloc(byteWidth * instances);
+	char* colorData			= (char*)malloc(byteWidth * instances);
 
 	for (Object* obj : this->objectList)
 	{
@@ -213,11 +213,15 @@ void Renderer::update()
 
 		UINT offset = i * byteWidth;
 
-		memcpy(static_cast<char*>(translationData) + offset,
-			&obj->GETTranslationBufferData(), byteWidth);
+		memcpy(
+			translationData + offset,
+			&obj->GETTranslationBufferData(), 
+			byteWidth);
 
-		memcpy(static_cast<char*>(colorData) + offset,
-			&obj->GETColorBufferData(), byteWidth);
+		memcpy(
+			colorData + offset,
+			&obj->GETColorBufferData(), 
+			byteWidth);
 
 		i++;
 	}
@@ -455,8 +459,6 @@ void Renderer::CreateShadersAndPiplelineState()
 	m_pipelineState.SetPrimitiveToplogy(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	m_pipelineState.Compile(device4, rootSignature);
 }
-
-
 
 void Renderer::CreateRootSignature()
 {
