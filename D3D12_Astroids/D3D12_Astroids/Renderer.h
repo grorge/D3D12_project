@@ -4,6 +4,15 @@
 #include <iostream>
 #include <thread>
 
+#include "CommandQueue.h"
+#include "CommandAllocator.h"
+#include "CommandList.h"
+
+#include "GraphicsPipelineState.h"
+
+#include "UploadResource.h"
+#include "DescriptorHeap.h"
+
 #include <vector>
 
 #define SCREEN_WIDTH 640
@@ -31,12 +40,14 @@ public:
 	//void render();
 	void render(int threadID);
 
+	ID3D12Device4*				device4 = nullptr;
+
 private:
 	void fillLists();
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
 	void WaitForGpu(int threadID);
 
-	void CreateDirect3DDevice(HWND wndHandle);				
+	void CreateDirect3DDevice();				
 	void CreateCommandInterfacesAndSwapChain(HWND wndHandle);	
 	void CreateFenceAndEventHandle();							
 	void CreateRenderTargets();									
@@ -56,10 +67,15 @@ private:
 
 	UINT backBufferIndex = 0;
 
-	ID3D12Device4*				device4 = nullptr;
-	ID3D12GraphicsCommandList3*	commandList4[NUM_SWAP_BUFFERS] = {};
-	ID3D12CommandQueue*			commandQueue = nullptr;
-	ID3D12CommandAllocator*		commandAllocator[NUM_SWAP_BUFFERS] = {};
+	CommandQueue m_graphicsCmdQueue;
+	CommandAllocator m_graphicsCmdAllocator;
+	CommandList m_graphicsCmdList;
+
+	GraphicsPipelineState m_pipelineState;
+
+	DescriptorHeap m_constantBufferHeap;
+	UploadResource m_constantBufferResource[NUM_CONST_BUFFERS];
+
 	IDXGISwapChain4*			swapChain4 = nullptr;
 
 	ID3D12Fence1*				fence = {};
@@ -80,9 +96,6 @@ private:
 	ID3D12PipelineState*		pipeLineState = nullptr;
 	
 	ID3D12DescriptorHeap*		descriptorHeap[NUM_SWAP_BUFFERS] = {};
-	ID3D12DescriptorHeap*		descriptorHeapConstBuffers = {};
-	ID3D12Resource1*			constantBufferResource[NUM_ALLOCATED_CONST_BUFFERS] = {};
-
 
 	ID3D12DescriptorHeap*		dsDescriptorHeap = {};
 	ID3D12Resource*				depthStencilBuffer = {};

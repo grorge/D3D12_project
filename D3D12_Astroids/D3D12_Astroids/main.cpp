@@ -6,12 +6,14 @@
 
 HWND				InitWindow(HINSTANCE hInstance);	//1. Create Window
 LRESULT CALLBACK	WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+void EnableDebugLayer();
 
 #pragma region wwinMain
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
 
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	EnableDebugLayer();
 
 	MSG msg			= {0};
 	HWND wndHandle	= InitWindow(hInstance);			//1. Create Window
@@ -45,8 +47,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 }
 #pragma endregion
 
+void EnableDebugLayer()
+{
+	ID3D12Debug* debugController = nullptr;
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+	{
+		debugController->EnableDebugLayer();
+	}
+	SafeRelease(&debugController);
+}
+
 #pragma region InitWindow
-HWND InitWindow(HINSTANCE hInstance)//1. Create Window
+HWND InitWindow(HINSTANCE hInstance) //1. Create Window
 {
 	WNDCLASSEX wcex		= {0};
 	wcex.cbSize			= sizeof(WNDCLASSEX);

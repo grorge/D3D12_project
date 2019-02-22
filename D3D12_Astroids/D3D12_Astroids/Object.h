@@ -1,6 +1,9 @@
 #pragma once
 #include "D3DHeader.h"
 
+#include "UploadResource.h"
+#include "DefaultResource.h"
+
 struct Vertex
 {
 	float x, y, z; // Position
@@ -20,6 +23,8 @@ public:
 	void addToCommList(ID3D12GraphicsCommandList3*	commandList4);
 	void update();
 
+	DefaultResource m_resource;
+
 private:
 	void CreateTriangleData(ID3D12Device4* device4);
 
@@ -28,4 +33,5 @@ private:
 
 	ConstantBuffer				color = {};
 	ConstantBuffer				translation = {};
+
 };
