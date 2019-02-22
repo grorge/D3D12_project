@@ -339,10 +339,9 @@ void Renderer::render(int threadID)
 		m_graphicsCmdQueue.ExecuteCmdList(listsToExecute, ARRAYSIZE(listsToExecute));
 
 
-		//while (this->working != threadID/* || (working == 4 && threadID == 0)*/)
-		//{
+		// Stops the thread until the previous thread is done with present
+		//while (this->working != threadID/* || (working == 4 && threadID == 0)*/) {}
 
-		//}
 		//Present the frame.
 		DXGI_PRESENT_PARAMETERS pp = {};
 		swapChain4->Present1(0, 0, &pp);
@@ -350,7 +349,7 @@ void Renderer::render(int threadID)
 
 		//printToDebug("BBI: ", swapChain4->GetCurrentBackBufferIndex());
 
-		WaitForGpu(threadID); //Wait for GPU to finish.
+		//WaitForGpu(threadID); //Wait for GPU to finish.
 					  //NOT BEST PRACTICE, only used as such for simplicity.
 	}
 	
@@ -401,9 +400,9 @@ void Renderer::WaitForGpu(int threadID)
 	{
 		this->fence->SetEventOnCompletion(fence, eventHandle);
 		WaitForSingleObject(eventHandle, INFINITE);
-		working++;
-		working %= (NUM_SWAP_BUFFERS);
-		printToDebug("working: ", this->working);
+		//working++;
+		//working %= (NUM_SWAP_BUFFERS);
+		//printToDebug("working: ", this->working);
 	}
 }
 

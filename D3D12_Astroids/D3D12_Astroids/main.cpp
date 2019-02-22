@@ -19,11 +19,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	HWND wndHandle	= InitWindow(hInstance);			//1. Create Window
 	
 	Renderer* render = new Renderer();
-	render->init(wndHandle);
 
 	if(wndHandle)
 	{
 		ShowWindow(wndHandle, nCmdShow);
+		render->init(wndHandle);
 		render->startGame();
 		while(WM_QUIT != msg.message)
 		{
