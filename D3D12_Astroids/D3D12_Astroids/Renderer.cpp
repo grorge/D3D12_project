@@ -8,17 +8,17 @@ Renderer::Renderer()
 Renderer::~Renderer()
 {
 	//Wait for GPU execution to be done and then release all interfaces.
-	WaitForGpu();
+	WaitForGpu(0);
 	CloseHandle(eventHandle);
 	SafeRelease(&device4);		
 	SafeRelease(&commandQueue);
 	SafeRelease(&swapChain4);
 
-	SafeRelease(&fence);
 
 	SafeRelease(&renderTargetsHeap);
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
+		SafeRelease(&fence[i]);
 		SafeRelease(&commandAllocator[i]);
 		SafeRelease(&commandList4[i]);
 		SafeRelease(&descriptorHeap[i]);
@@ -70,7 +70,9 @@ void Renderer::init(HWND hwnd)
 
 	//CreateTriangleData();
 
-	this->WaitForGpu();
+	this->WaitForGpu(0);
+
+
 }
 
 void Renderer::startGame()
@@ -81,6 +83,13 @@ void Renderer::startGame()
 	{
 		this->objectList.push_back(new Object(this->device4, i));
 	}
+
+	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+	{
+		//this->frameThreads[i] = new std::thread(&Renderer::render, i, this );
+		this->frameThreads[i] = new std::thread([&](Renderer* rnd) { rnd->render(i); }, this);
+	}
+
 }
 
 void Renderer::update()
@@ -164,36 +173,51 @@ void Renderer::ready()
 }
 
 
-void Renderer::render()
+void Renderer::render(int threadID)
 {
-	this->ready();
+	while (true)
+	{
+		while (threadID != swapChain4->GetCurrentBackBufferIndex())
+		{
+
+		}
+		//printToDebug(threadID);
+		//printToDebug("\n");
+
+		this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
+
+		this->update();
+
+		this->ready();
+
+		this->fillLists();
+
+		//Indicate that the back buffer will now be used to present.
+		SetResourceTransitionBarrier(commandList4[this->backBufferIndex],
+			renderTargets[backBufferIndex],
+			D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
+			D3D12_RESOURCE_STATE_PRESENT		//state after
+		);
+
+		//Close the list to prepare it for execution.
+		commandList4[this->backBufferIndex]->Close();
+
+		//Execute the command list.
+		ID3D12CommandList* listsToExecute[] = { commandList4[this->backBufferIndex] };
+		commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+		//Present the frame.
+		DXGI_PRESENT_PARAMETERS pp = {};
+		swapChain4->Present1(0, 0, &pp);
+
+		//printToDebug(swapChain4->GetCurrentBackBufferIndex());
+		//printToDebug("\n");
+
+		WaitForGpu(threadID); //Wait for GPU to finish.
+					  //NOT BEST PRACTICE, only used as such for simplicity.
+	}
 	
-	this->fillLists();
 
-	//Indicate that the back buffer will now be used to present.
-	SetResourceTransitionBarrier(commandList4[this->backBufferIndex],
-		renderTargets[backBufferIndex],
-		D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
-		D3D12_RESOURCE_STATE_PRESENT		//state after
-	);
-
-	//Close the list to prepare it for execution.
-	commandList4[this->backBufferIndex]->Close();
-
-	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { commandList4[this->backBufferIndex] };
-	commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
-
-	//Present the frame.
-	DXGI_PRESENT_PARAMETERS pp = {};
-	swapChain4->Present1(0, 0, &pp);
-	swapChain4->Present1(0, 0, &pp);
-
-	printToDebug(swapChain4->GetCurrentBackBufferIndex());
-	printToDebug("\n");
-
-	WaitForGpu(); //Wait for GPU to finish.
-				  //NOT BEST PRACTICE, only used as such for simplicity.
 }
 
 void Renderer::fillLists()
@@ -223,22 +247,23 @@ void Renderer::SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandLi
 	commandList->ResourceBarrier(1, &barrierDesc);
 }
 
-void Renderer::WaitForGpu()
+void Renderer::WaitForGpu(int threadID)
 {
+	int i = threadID;
 	//WAITING FOR EACH FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
 //This is code implemented as such for simplicity. The cpu could for example be used
 //for other tasks to prepare the next frame while the current one is being rendered.
 
 //Signal and increment the fence value.
-	const UINT64 fence = fenceValue;
-	commandQueue->Signal(this->fence, fence);
-	fenceValue++;
+	const UINT64 fence = fenceValue[i];
+	commandQueue->Signal(this->fence[i], fence);
+	fenceValue[i]++;
 
 	//Wait until command queue is done.
 //	if (this->fence->GetCompletedValue() < fence)
-	if (fence > this->fence->GetCompletedValue() + NUM_SWAP_BUFFERS)
+	if (fence > this->fence[i]->GetCompletedValue() + NUM_SWAP_BUFFERS)
 	{
-		this->fence->SetEventOnCompletion(fence, eventHandle);
+		this->fence[i]->SetEventOnCompletion(fence, eventHandle);
 		WaitForSingleObject(eventHandle, INFINITE);
 	}
 }
@@ -373,10 +398,13 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 
 void Renderer::CreateFenceAndEventHandle()
 {
-	device4->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
-	fenceValue = 1;
-	//Create an event handle to use for GPU synchronization.
-	eventHandle = CreateEvent(0, false, false, 0);
+	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+	{
+		device4->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence[i]));
+		fenceValue[i] = 1;
+		//Create an event handle to use for GPU synchronization.
+		eventHandle[i] = CreateEvent(0, false, false, 0);
+	}
 }
 
 void Renderer::CreateRenderTargets()

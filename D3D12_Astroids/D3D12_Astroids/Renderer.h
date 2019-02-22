@@ -28,12 +28,13 @@ public:
 
 	void ready();
 	void update();
-	void render();
+	//void render();
+	void render(int threadID);
 
 private:
 	void fillLists();
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
-	void WaitForGpu();
+	void WaitForGpu(int threadID);
 
 	void CreateDirect3DDevice(HWND wndHandle);				
 	void CreateCommandInterfacesAndSwapChain(HWND wndHandle);	
@@ -45,7 +46,8 @@ private:
 	void CreateConstantBufferResources();
 	void CreateDepthStencil();
 
-
+	std::thread* frameThreads[NUM_SWAP_BUFFERS];
+	//int working
 
 	MSG msg = { 0 };
 	HWND hwnd;
@@ -60,9 +62,9 @@ private:
 	ID3D12CommandAllocator*		commandAllocator[NUM_SWAP_BUFFERS] = {};
 	IDXGISwapChain4*			swapChain4 = nullptr;
 
-	ID3D12Fence1*				fence = nullptr;
-	HANDLE						eventHandle = nullptr;
-	UINT64						fenceValue = 0;
+	ID3D12Fence1*				fence[NUM_SWAP_BUFFERS] = {};
+	HANDLE						eventHandle[NUM_SWAP_BUFFERS] = {};
+	UINT64						fenceValue[NUM_SWAP_BUFFERS] = {};
 
 	ID3D12DescriptorHeap*		renderTargetsHeap = nullptr;
 	ID3D12Resource1*			renderTargets[NUM_SWAP_BUFFERS] = {};

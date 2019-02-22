@@ -32,9 +32,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 			}
 			else
 			{
-				render->update();
+				//render->update();
 				//render->ready();
-				render->render();
+				//render->render();
 			}
 		}
 	}
