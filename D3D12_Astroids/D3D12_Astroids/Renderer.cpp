@@ -124,8 +124,8 @@ void Renderer::update()
 {
 	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 	
-	UINT instances = objectList.size();
-	UINT byteWidth = sizeof(float) * 4;
+	UINT instances = (UINT)objectList.size();
+	UINT byteWidth = (UINT)sizeof(float) * 4;
 	int i = 0;
 
 	void* translationData = malloc(byteWidth * instances);
@@ -192,7 +192,7 @@ void Renderer::render()
 
 void Renderer::fillLists()
 {
-	UINT instances = objectList.size();
+	UINT instances = (UINT)objectList.size();
 	commandList4->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	
 	for (Object* obj : this->objectList)
