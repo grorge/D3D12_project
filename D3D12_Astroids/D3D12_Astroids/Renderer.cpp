@@ -234,7 +234,7 @@ void Renderer::update()
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
 
-	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
+	//this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 	
 	UINT instances = (UINT)objectList.size();
 	UINT byteWidth = (UINT)sizeof(float) * 4;
@@ -355,8 +355,6 @@ void Renderer::render(int threadID)
 		WaitForGpu(threadID); //Wait for GPU to finish.
 					  //NOT BEST PRACTICE, only used as such for simplicity.
 	}
-	
-
 }
 
 void Renderer::fillLists()
@@ -402,7 +400,9 @@ void Renderer::WaitForGpu(int threadID)
 	if (this->fence->GetCompletedValue() < fence)
 	{
 		this->fence->SetEventOnCompletion(fence, eventHandle);
-		WaitForSingleObject(eventHandle, 20);
+		//printToDebug("Start Wait: ", threadID);
+		WaitForSingleObject(eventHandle, 1);
+		//printToDebug("Done Wait: ", threadID);
 		//working++;
 		//working %= (NUM_SWAP_BUFFERS);
 		//printToDebug("working: ", this->working);
