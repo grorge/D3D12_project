@@ -125,6 +125,7 @@
     <ClInclude Include="GraphicsPipelineState.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="PipelineState.h" />
+    <ClInclude Include="ReadbackResource.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="UploadResource.h" />
@@ -171,6 +172,7 @@
     <ClCompile Include="GraphicsPipelineState.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Object.cpp" />
+    <ClCompile Include="ReadbackResource.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="UploadResource.cpp" />
   </ItemGroup>

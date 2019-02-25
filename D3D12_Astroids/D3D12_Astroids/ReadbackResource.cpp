@@ -1,24 +1,21 @@
-#include "UploadResource.h"
+#include "ReadbackResource.h"
 
 
 
-UploadResource::UploadResource()
+ReadbackResource::ReadbackResource()
 {
-	m_byteWidth = 0;
-	mp_resource = nullptr;
-	m_currentState = D3D12_RESOURCE_STATE_COMMON;
 }
 
-UploadResource::~UploadResource()
+ReadbackResource::~ReadbackResource()
 {
 	Destroy();
 }
 
-void UploadResource::Initialize(
-	ID3D12Device * pDevice,
-	const UINT byteWidth,
-	const D3D12_HEAP_FLAGS heapFlag,
-	const D3D12_RESOURCE_STATES state,
+void ReadbackResource::Initialize(
+	ID3D12Device * pDevice, 
+	const UINT byteWidth, 
+	const D3D12_HEAP_FLAGS heapFlag, 
+	const D3D12_RESOURCE_STATES state, 
 	const D3D12_RESOURCE_FLAGS resourceFlag)
 {
 	m_byteWidth = byteWidth;
@@ -26,7 +23,7 @@ void UploadResource::Initialize(
 
 	{
 		D3D12_HEAP_PROPERTIES properties = {};
-		properties.Type = D3D12_HEAP_TYPE_UPLOAD;
+		properties.Type = D3D12_HEAP_TYPE_READBACK;
 		properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 		properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 		properties.CreationNodeMask = 0;
@@ -57,14 +54,14 @@ void UploadResource::Initialize(
 	}
 }
 
-void UploadResource::SetData(const void * data)
+void * ReadbackResource::GetData()
 {
 	void* dataBegin = nullptr;
 
-	D3D12_RANGE read = { 0, 0 };			// Don't read
-	D3D12_RANGE write = { 0, m_byteWidth }; // Do Write
-
+	D3D12_RANGE read = { 0, m_byteWidth };
+	D3D12_RANGE write = { 0, 0 };
 	mp_resource->Map(0, &read, &dataBegin);
-	memcpy(dataBegin, data, m_byteWidth);
 	mp_resource->Unmap(0, &write);
+
+	return dataBegin;
 }

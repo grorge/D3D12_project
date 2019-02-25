@@ -1,6 +1,10 @@
 #include "Renderer.h"
 
-void UploadResourceToDefault(
+
+#include "UploadResource.h"
+#include "ReadbackResource.h"
+
+void UploadResourceData(
 	Resource* pDest,
 	Resource* pSrc,
 	ID3D12GraphicsCommandList* pCmdList)
@@ -29,6 +33,43 @@ void UploadResourceToDefault(
 	close.Transition.pResource = pDest->mp_resource;
 	close.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 	close.Transition.StateAfter = pDest->m_currentState;
+	close.Transition.Subresource = 0;
+
+
+	pCmdList->ResourceBarrier(1, &open);
+	pCmdList->CopyResource(pDest->mp_resource, pSrc->mp_resource);
+	pCmdList->ResourceBarrier(1, &close);
+}
+
+void DownloadResourceData(
+	Resource* pDest,
+	Resource* pSrc,
+	ID3D12GraphicsCommandList* pCmdList)
+{
+	/*
+
+		if pSrc is an uploadResource, transitions may not be allowed
+		https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/ne-d3d12-d3d12_heap_type
+
+	*/
+
+	D3D12_RESOURCE_BARRIER open;
+	open.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	open.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+
+	open.Transition.pResource = pSrc->mp_resource;
+	open.Transition.StateBefore = pSrc->m_currentState;
+	open.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	open.Transition.Subresource = 0;
+
+
+	D3D12_RESOURCE_BARRIER close;
+	close.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	close.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+
+	close.Transition.pResource = pSrc->mp_resource;
+	close.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	close.Transition.StateAfter = pSrc->m_currentState;
 	close.Transition.Subresource = 0;
 
 
@@ -120,42 +161,15 @@ void Renderer::startGame()
 		0.0f, 0.0f, 1.0f	//v3 color
 	};
 
-	const UINT byteWidth = sizeof(triangleVertices);
-
-	UploadResource upload;
-	upload.Initialize(
-		device4,
-		byteWidth,
-		D3D12_HEAP_FLAG_NONE,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		D3D12_RESOURCE_FLAG_NONE);
-
-	upload.SetData(triangleVertices);
-
 	this->object = new Object(this->device4, 1);
 
 	for (int i = 0; i < 3; i++)
 	{
 		this->objectList.push_back(new Object(this->device4, i));
 	}
-	
-	m_graphicsCmdAllocator()->Reset();
-	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), nullptr);
 
-	UploadResourceToDefault(
-		&this->objectList[0]->m_resource,
-		&upload,
-		m_graphicsCmdList());
-
-	//Close the list to prepare it for execution.
-	m_graphicsCmdList()->Close();
-
-	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
-	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
-
-	WaitForGpu(m_graphicsCmdQueue());
-	upload.Destroy();
+	const UINT byteWidth = sizeof(triangleVertices);
+	this->UploadData(triangleVertices, byteWidth, &this->objectList[0]->m_resource);
 }
 
 void Renderer::ready()
@@ -300,6 +314,11 @@ void Renderer::RunComputeShader()
 	//Execute the command list.
 	ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
 	m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+	WaitForGpu(m_computeCmdQueue());
+
+	UINT uavSize = (sizeof(ConstantBuffer) + 255) & ~255;	// 256-byte aligned CB.
+	DownloadData(NULL, uavSize, &m_uavResource);
 }
 
 void Renderer::fillLists()
@@ -628,7 +647,7 @@ void Renderer::CreateUnorderedAccessResources()
 	m_uavHeap.Initialize(
 		device4,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		NUM_CONST_BUFFERS);
+		1);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuAddress =
 		m_uavHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -645,6 +664,10 @@ void Renderer::CreateUnorderedAccessResources()
 		NULL,
 		&desc,
 		cpuAddress);
+
+	ConstantBuffer data = { 2.0f, 4.0f, 8.0f, 16.0f };
+
+	this->UploadData(&data, uavSize, &m_uavResource);
 }
 
 void Renderer::CreateDepthStencil()
@@ -700,4 +723,78 @@ void Renderer::CreateDepthStencil()
 		this->depthStencilBuffer, 
 		&dsStencilViewDesc, 
 		this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+}
+
+void Renderer::UploadData(void * data, const UINT byteWidth, Resource * pDest)
+{
+	UploadResource upload;
+	upload.Initialize(
+		device4,
+		byteWidth,
+		D3D12_HEAP_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_FLAG_NONE);
+
+	upload.SetData(data);
+
+	m_graphicsCmdAllocator()->Reset();
+	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), nullptr);
+
+	UploadResourceData(
+		pDest,
+		&upload,
+		m_graphicsCmdList());
+
+	//Close the list to prepare it for execution.
+	m_graphicsCmdList()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
+	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+	WaitForGpu(m_graphicsCmdQueue());
+	upload.Destroy();
+}
+
+void Renderer::DownloadData(void ** data, const UINT byteWidth, Resource * pSrc)
+{
+	WaitForGpu(m_graphicsCmdQueue());
+
+	ReadbackResource download;
+	download.Initialize(
+		device4,
+		byteWidth,
+		D3D12_HEAP_FLAG_NONE,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_FLAG_NONE);
+
+	m_graphicsCmdAllocator()->Reset();
+	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), nullptr);
+
+	DownloadResourceData(
+		&download,
+		pSrc,
+		m_graphicsCmdList());
+
+	//Close the list to prepare it for execution.
+	m_graphicsCmdList()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
+	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+	WaitForGpu(m_graphicsCmdQueue());
+
+	float* downloaded = (float*)download.GetData();
+
+	ConstantBuffer cb;
+	cb.values[0] = downloaded[0];
+
+	printToDebug("Data: \n");
+	printToDebug(cb.values[0]);
+	printToDebug("\n");
+	
+	download.Destroy();
+
+	Sleep(1000);
 }

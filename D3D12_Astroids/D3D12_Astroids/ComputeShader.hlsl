@@ -1,7 +1,7 @@
 
 struct BufType
 {
-	float x, y, z;
+	float x, y, z, w;
 };
 
 //StructuredBuffer<BufType> Buffer0 : register(t0);
@@ -11,7 +11,7 @@ RWStructuredBuffer<BufType> BufferOut : register(u0);
 [numthreads(1, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	/*BufferOut[DTid.x].x = 0.0f;
-	BufferOut[DTid.x].y = 0.0f;
-	BufferOut[DTid.x].z = 0.0f;*/
+	BufferOut[DTid.x].x += 2.0f;
+	BufferOut[DTid.x].y = 4.0f;
+	BufferOut[DTid.x].z = 8.0f;
 }

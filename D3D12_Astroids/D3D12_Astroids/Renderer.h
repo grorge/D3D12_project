@@ -9,7 +9,6 @@
 #include "GraphicsPipelineState.h"
 #include "ComputePipelineState.h"
 
-#include "UploadResource.h"
 #include "DescriptorHeap.h"
 
 #include <vector>
@@ -55,6 +54,9 @@ private:
 	void CreateConstantBufferResources();
 	void CreateUnorderedAccessResources();
 	void CreateDepthStencil();
+
+	void UploadData(void* data, const UINT byteWidth, Resource* pDest);
+	void DownloadData(void** data, const UINT byteWidth, Resource* pSrc);
 
 	HWND hwnd;
 
