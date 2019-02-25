@@ -364,7 +364,7 @@ void Renderer::WaitForGpu(int threadID)
 		//printToDebug("Done Wait: ", threadID);
 		//working++;
 		//working %= (NUM_SWAP_BUFFERS);
-		//printToDebug("working: ", this->working);
+		//printToDebug("working: ", this->working);//
 	}
 }
 
