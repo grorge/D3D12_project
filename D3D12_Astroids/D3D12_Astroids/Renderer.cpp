@@ -195,7 +195,8 @@ void Renderer::ready()
 	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
 	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
 
-	m_graphicsCmdList()->OMSetRenderTargets(1, &cdh, true, nullptr);
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuAccessDSV = this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	m_graphicsCmdList()->OMSetRenderTargets(1, &cdh, true, &cpuAccessDSV);
 
 	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	m_graphicsCmdList()->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
