@@ -54,6 +54,9 @@
     <ClInclude Include="GraphicsPipelineState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="KeyBoardInput.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="VertexShader.hlsl">
@@ -95,6 +98,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GraphicsPipelineState.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="KeyBoardInput.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

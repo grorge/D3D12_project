@@ -123,6 +123,7 @@
     <ClInclude Include="DefaultResource.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="GraphicsPipelineState.h" />
+    <ClInclude Include="KeyBoardInput.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="PipelineState.h" />
     <ClInclude Include="Renderer.h" />
@@ -159,6 +160,7 @@
     <ClCompile Include="DefaultResource.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="GraphicsPipelineState.cpp" />
+    <ClCompile Include="KeyBoardInput.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="Renderer.cpp" />
