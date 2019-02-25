@@ -269,47 +269,6 @@ void Renderer::update()
 	free(colorData);
 }
 
-//void Renderer::clearAndReady()
-//{
-//	//Command list allocators can only be reset when the associated command lists have
-//	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-//	commandAllocator[this->backBufferIndex]->Reset();
-//	commandList4[this->backBufferIndex]->Reset(commandAllocator[this->backBufferIndex], pipeLineState);
-//
-//	//Indicate that the back buffer will be used as render target.
-//	SetResourceTransitionBarrier(commandList4[this->backBufferIndex],
-//		renderTargets[backBufferIndex],
-//		D3D12_RESOURCE_STATE_PRESENT,		//state before
-//		D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
-//	);
-//	//Set constant buffer descriptor heap
-//	ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeapConstBuffers };
-//	commandList4[this->backBufferIndex]->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
-//
-//	//Set root signature
-//	commandList4[this->backBufferIndex]->SetGraphicsRootSignature(rootSignature);
-//
-//	//Set root descriptor table to index 0 in previously set root signature
-//	commandList4[this->backBufferIndex]->SetGraphicsRootDescriptorTable(0, descriptorHeapConstBuffers->GetGPUDescriptorHandleForHeapStart());
-//	
-//	//Set necessary states.
-//	commandList4[this->backBufferIndex]->RSSetViewports(1, &viewport);
-//	commandList4[this->backBufferIndex]->RSSetScissorRects(1, &scissorRect);
-//
-//	//Record commands.
-//	//Get the handle for the current render target used as back buffer.
-//	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
-//	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
-//
-//	commandList4[this->backBufferIndex]->OMSetRenderTargets(1, &cdh, true, &this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-//
-//	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-//	commandList4[this->backBufferIndex]->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
-//	this->commandList4[this->backBufferIndex]->ClearDepthStencilView(this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-//
-//}
-
-
 void Renderer::render(int threadID)
 {
 	while (this->running)
@@ -317,7 +276,7 @@ void Renderer::render(int threadID)
 		//while (threadID != 0)	{}
 		while (threadID != swapChain4->GetCurrentBackBufferIndex())	{}
 
-		printToDebug("ID: ", threadID);
+		//printToDebug("ID: ", threadID);
 
 		this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 
@@ -589,8 +548,8 @@ void Renderer::CreateRootSignature()
 	
 	dtRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	dtRanges[1].NumDescriptors = 1; //only one CB in this example
-	dtRanges[1].BaseShaderRegister = 1; //register b0
-	dtRanges[1].RegisterSpace = 0; //register(b0,space0);
+	dtRanges[1].BaseShaderRegister = 1; //register b1
+	dtRanges[1].RegisterSpace = 0; //register(b1,space0);
 	dtRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	//create a descriptor table

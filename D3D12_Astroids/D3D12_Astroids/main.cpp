@@ -35,9 +35,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 			else
 			{
 				// Done in threads right now
-				//render->update();
-				//render->clearAndReady();
-				//render->render();
+				///render->update();
+				///render->clearAndReady();
+				///render->render();
 			}
 		}
 	}
