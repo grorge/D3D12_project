@@ -60,6 +60,7 @@ private:
 
 	std::thread* frameThreads[NUM_SWAP_BUFFERS];
 	int working = 0;
+	bool running = true;
 
 	MSG msg = { 0 };
 	HWND hwnd;

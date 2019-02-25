@@ -41,7 +41,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 		}
 	}
 	
-	render->joinThreads();
+	//render->joinThreads();
 	delete render;
 
 	return (int)msg.wParam;

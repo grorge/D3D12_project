@@ -47,7 +47,7 @@ Renderer::~Renderer()
 	//WaitForGpu(0);
 	
 
-
+	this->joinThreads();
 
 	SafeRelease(&device4);		
 	SafeRelease(&swapChain4);
@@ -58,13 +58,14 @@ Renderer::~Renderer()
 	SafeRelease(&renderTargetsHeap);
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
-		//SafeRelease(&this->m_graphicsCmdAllocator[i]);
-		//SafeRelease(&this->m_graphicsCmdList[i]);
+		this->m_graphicsCmdAllocator[i].Destroy();
+		this->m_graphicsCmdList[i].Destroy();
 		SafeRelease(&descriptorHeap[i]);
 		SafeRelease(&renderTargets[i]);
 	}
 	for (int i = 0; i < NUM_ALLOCATED_CONST_BUFFERS; i++)
 	{
+		m_constantBufferResource[i].Destroy();
 		//SafeRelease(&m_constantBufferResource[i]);
 	}
 
@@ -177,9 +178,11 @@ void Renderer::startGame()
 
 void Renderer::joinThreads()
 {
+	this->running = false;
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
 		frameThreads[i]->join();
+		delete frameThreads[i];
 	}
 
 }
@@ -309,7 +312,7 @@ void Renderer::update()
 
 void Renderer::render(int threadID)
 {
-	while (true)
+	while (this->running)
 	{
 		//while (threadID != 0)	{}
 		while (threadID != swapChain4->GetCurrentBackBufferIndex())	{}
@@ -349,7 +352,7 @@ void Renderer::render(int threadID)
 
 		//printToDebug("BBI: ", swapChain4->GetCurrentBackBufferIndex());
 
-		//WaitForGpu(threadID); //Wait for GPU to finish.
+		WaitForGpu(threadID); //Wait for GPU to finish.
 					  //NOT BEST PRACTICE, only used as such for simplicity.
 	}
 	
@@ -399,7 +402,7 @@ void Renderer::WaitForGpu(int threadID)
 	if (this->fence->GetCompletedValue() < fence)
 	{
 		this->fence->SetEventOnCompletion(fence, eventHandle);
-		WaitForSingleObject(eventHandle, INFINITE);
+		WaitForSingleObject(eventHandle, 20);
 		//working++;
 		//working %= (NUM_SWAP_BUFFERS);
 		//printToDebug("working: ", this->working);
@@ -508,7 +511,8 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 
 void Renderer::CreateFenceAndEventHandle()
 {
-	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+	//for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		device4->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 		fenceValue = 1;
