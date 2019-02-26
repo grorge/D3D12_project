@@ -317,8 +317,18 @@ void Renderer::RunComputeShader()
 
 	WaitForGpu(m_computeCmdQueue());
 
-	UINT uavSize = (sizeof(ConstantBuffer) + 255) & ~255;	// 256-byte aligned CB.
-	DownloadData(NULL, uavSize, &m_uavResource);
+	const UINT uavSize = (sizeof(ConstantBuffer) + 255) & ~255;	// 256-byte aligned CB.
+	float* data = nullptr;// (float*)malloc(uavSize);
+	DownloadData((void**)&data, uavSize, &m_uavResource);
+
+	ConstantBuffer cb;
+	cb.values[0] = data[0];
+
+	printToDebug("Data: \n");
+	printToDebug(cb.values[0]);
+	printToDebug("\n");
+
+	Sleep(1000);
 }
 
 void Renderer::fillLists()
@@ -785,16 +795,6 @@ void Renderer::DownloadData(void ** data, const UINT byteWidth, Resource * pSrc)
 
 	WaitForGpu(m_graphicsCmdQueue());
 
-	float* downloaded = (float*)download.GetData();
-
-	ConstantBuffer cb;
-	cb.values[0] = downloaded[0];
-
-	printToDebug("Data: \n");
-	printToDebug(cb.values[0]);
-	printToDebug("\n");
-	
+	*data = download.GetData();
 	download.Destroy();
-
-	Sleep(1000);
 }
