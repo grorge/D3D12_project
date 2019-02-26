@@ -7,6 +7,7 @@ ComputePipelineState::ComputePipelineState()
 
 ComputePipelineState::~ComputePipelineState()
 {
+	Destroy();
 }
 
 void ComputePipelineState::Compile(

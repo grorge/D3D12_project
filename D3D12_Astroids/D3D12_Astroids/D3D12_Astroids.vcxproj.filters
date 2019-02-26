@@ -65,6 +65,9 @@
     <FxCompile Include="PixelShader.hlsl">
       <Filter>Resource Files</Filter>
     </FxCompile>
+    <FxCompile Include="ComputeShader.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Renderer.cpp">
