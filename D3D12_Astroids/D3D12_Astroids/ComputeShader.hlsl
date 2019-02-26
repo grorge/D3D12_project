@@ -24,15 +24,15 @@ RWStructuredBuffer<BufTypeIntArray> BufferOutKeyboard : register(u1);
 void main(uint3 DTid : SV_DispatchThreadID)
 {
 	BufferOut[DTid.x].x += 1.0f;
-	if (BufferOutKeyboard[DTid.x].arr[key_W] == 1)
+	if (BufferOutKeyboard[DTid.x].arr[key_W] != 0)
 		BufferOut[DTid.x].x += 2.0f;
-	if (BufferOutKeyboard[DTid.x].arr[key_A] == 1)
+	if (BufferOutKeyboard[DTid.x].arr[key_A] != 0)
 		BufferOut[DTid.x].x += 20.0f;
-	if (BufferOutKeyboard[DTid.x].arr[key_S] == 1)
+	if (BufferOutKeyboard[DTid.x].arr[key_S] != 0)
 		BufferOut[DTid.x].x += 200.0f;
-	if (BufferOutKeyboard[DTid.x].arr[key_D] == 1)
+	if (BufferOutKeyboard[DTid.x].arr[key_D] != 0)
 		BufferOut[DTid.x].x += 2000.0f;
-	if (BufferOutKeyboard[DTid.x].arr[key_Space] == 1)
+	if (BufferOutKeyboard[DTid.x].arr[key_Space] != 0)
 		BufferOut[DTid.x].x += 20000.0f;
 
 
