@@ -1,10 +1,12 @@
 #pragma once
 #include "D3DHeader.h"
+//#include "DefaultResource.h"
 
 // include thread.h
 
 #pragma comment (lib, "User32.lib")
 
+class DefaultResource;
 
 class KeyBoardInput
 {
@@ -13,11 +15,12 @@ public:
 	~KeyBoardInput();
 	void init();
 
-	void readKeyboard();
+	bool readKeyboard();
 	void sendToGPU();
 	void printKeyboard();
 
+	int keyBoardInt[256];
+	UINT keyboardSize;
 private:
 	PBYTE keyBoardState;
-	char keyBoardChars[256];
 };

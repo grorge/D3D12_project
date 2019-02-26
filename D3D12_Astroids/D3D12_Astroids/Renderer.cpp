@@ -118,6 +118,8 @@ void Renderer::init(HWND hwnd)
 {
 	this->hwnd = hwnd;
 
+	this->CreateKeyBoardInput();
+
 	this->CreateDirect3DDevice();					//2. Create Device
 
 	this->CreateCommandInterfacesAndSwapChain(hwnd);	//3. Create CommandQueue and SwapChain
@@ -259,6 +261,12 @@ void Renderer::update()
 	m_constantBufferResource[0].SetData(colorData);
 	m_constantBufferResource[1].SetData(translationData);
 
+	// Update keyboard
+	//if (keyboard->readKeyboard())
+	keyboard->readKeyboard();
+	this->UploadData(&this->keyboard->keyBoardInt, this->keyboard->keyboardSize, &this->m_uavResourceIntArray);
+	
+
 	free(translationData);
 	free(colorData);
 }
@@ -303,7 +311,10 @@ void Renderer::RunComputeShader()
 	// Set Root Argument, Index 1
 	m_computeCmdList()->SetComputeRootUnorderedAccessView(
 		1,
-		m_uavResource.mp_resource->GetGPUVirtualAddress());
+		m_uavResourceFloat4.mp_resource->GetGPUVirtualAddress());
+	m_computeCmdList()->SetComputeRootUnorderedAccessView(
+		2,
+		this->m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
 
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
 
@@ -319,7 +330,7 @@ void Renderer::RunComputeShader()
 
 	const UINT uavSize = (sizeof(ConstantBuffer) + 255) & ~255;	// 256-byte aligned CB.
 	float* data = nullptr;// (float*)malloc(uavSize);
-	DownloadData((void**)&data, uavSize, &m_uavResource);
+	DownloadData((void**)&data, uavSize, &m_uavResourceFloat4);
 
 	ConstantBuffer cb;
 	cb.values[0] = data[0];
@@ -373,6 +384,15 @@ void Renderer::WaitForGpu(ID3D12CommandQueue* queue)
 		this->fence->SetEventOnCompletion(fence, eventHandle);
 		WaitForSingleObject(eventHandle, INFINITE);
 	}
+}
+
+void Renderer::CreateKeyBoardInput()
+{
+	this->keyboard = new KeyBoardInput();
+	keyboard->init();
+	//keyboard->init(&this->m_uavResourceIntArray);
+	//keyboard->printKeyboard();
+	//keyboard->keyBoardInt[3] = 1;
 }
 
 void Renderer::CreateDirect3DDevice()
@@ -570,7 +590,7 @@ void Renderer::CreateRootSignature()
 	dt.pDescriptorRanges = dtRanges;
 
 	//create root parameter
-	D3D12_ROOT_PARAMETER  rootParam[2];
+	D3D12_ROOT_PARAMETER  rootParam[3];
 	rootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[0].DescriptorTable = dt;
 	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
@@ -582,11 +602,21 @@ void Renderer::CreateRootSignature()
 	uavDesc.RegisterSpace = 0;
 	uavDesc.ShaderRegister = 0;
 
+
 	//create root parameter
 	rootParam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
 	rootParam[1].Descriptor = uavDesc;
 	rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
+	//create a descriptor table
+	D3D12_ROOT_DESCRIPTOR uavDesc1;
+	uavDesc1.RegisterSpace = 0;
+	uavDesc1.ShaderRegister = 1;
+
+	//create root parameter
+	rootParam[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+	rootParam[2].Descriptor = uavDesc1;
+	rootParam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -657,12 +687,13 @@ void Renderer::CreateUnorderedAccessResources()
 	m_uavHeap.Initialize(
 		device4,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		1);
+		2);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuAddress =
 		m_uavHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
-	m_uavResource.Initialize(
+
+	m_uavResourceFloat4.Initialize(
 		device4,
 		uavSize,
 		D3D12_HEAP_FLAG_NONE,
@@ -670,14 +701,45 @@ void Renderer::CreateUnorderedAccessResources()
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	device4->CreateUnorderedAccessView(
-		m_uavResource.mp_resource,
+		m_uavResourceFloat4.mp_resource,
 		NULL,
 		&desc,
 		cpuAddress);
+	cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	ConstantBuffer data = { 2.0f, 4.0f, 8.0f, 16.0f };
+	ConstantBuffer data = { 1.0f, 1.0f, 1.0f, 1.0f };
+	this->UploadData(&data, uavSize, &m_uavResourceFloat4);
 
-	this->UploadData(&data, uavSize, &m_uavResource);
+	//----------
+
+	uavSize = ((sizeof(int) * 256) + 255) & ~255;	// 256-byte aligned CB.
+	//uavSize = (sizeof(int) + 255) & ~255;	// 256-byte aligned CB.
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC desc1 = {};
+	desc1.Format = DXGI_FORMAT_UNKNOWN;
+	desc1.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	   
+	desc1.Buffer.FirstElement = 0;
+	desc1.Buffer.NumElements = 256;
+	desc1.Buffer.StructureByteStride = sizeof(int);
+	desc1.Buffer.CounterOffsetInBytes = 0;
+	desc1.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+	this->m_uavResourceIntArray.Initialize(
+		device4,
+		uavSize,
+		D3D12_HEAP_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	device4->CreateUnorderedAccessView(
+		this->m_uavResourceIntArray.mp_resource,
+		NULL,
+		&desc1,
+		cpuAddress);
+
+	this->UploadData(&this->keyboard->keyBoardInt, uavSize, &this->m_uavResourceIntArray);
+	//this->keyboard->keyboardSize
 }
 
 void Renderer::CreateDepthStencil()

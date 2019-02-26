@@ -11,6 +11,8 @@
 
 #include "DescriptorHeap.h"
 
+#include "KeyBoardInput.h"
+
 #include <vector>
 
 #define SCREEN_WIDTH 640
@@ -44,6 +46,7 @@ private:
 	void WaitForGpu(ID3D12CommandQueue* queue);
 
 
+	void CreateKeyBoardInput();				
 	void CreateDirect3DDevice();				
 	void CreateCommandInterfacesAndSwapChain(HWND wndHandle);	
 	void CreateFenceAndEventHandle();							
@@ -79,7 +82,8 @@ private:
 	UploadResource m_constantBufferResource[NUM_CONST_BUFFERS];
 
 	DescriptorHeap m_uavHeap;
-	DefaultResource m_uavResource;
+	DefaultResource m_uavResourceFloat4;
+	DefaultResource m_uavResourceIntArray;
 
 	IDXGISwapChain4*			swapChain4 = nullptr;
 
@@ -101,6 +105,8 @@ private:
 
 	ID3D12DescriptorHeap*		dsDescriptorHeap = {};
 	ID3D12Resource*				depthStencilBuffer = {};
+	
+	KeyBoardInput*				keyboard = nullptr;
 
 	//-----------------------
 

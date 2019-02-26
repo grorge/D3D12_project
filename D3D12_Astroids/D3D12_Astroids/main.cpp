@@ -1,5 +1,4 @@
 #include "Renderer.h"
-#include "KeyBoardInput.h"
 
 #define _CRTDBG_MAP_ALLOC  
 #include <stdlib.h>  
@@ -23,8 +22,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	render->init(wndHandle);
 	render->startGame();
 
-	KeyBoardInput* keyboard = new KeyBoardInput();
-	keyboard->init();
 
 
 	if(wndHandle)
@@ -39,7 +36,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 			}
 			else
 			{
-				keyboard->readKeyboard();
 				//render->ready();
 				render->update();
 				render->render();
@@ -49,7 +45,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	}
 	
 	delete render;
-	delete keyboard;
 
 	return (int)msg.wParam;
 }
