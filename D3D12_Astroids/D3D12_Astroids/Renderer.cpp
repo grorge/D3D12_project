@@ -325,7 +325,7 @@ void Renderer::RunComputeShader()
 
 	// Shader proccesing keyboard
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
-	m_computeCmdList()->Dispatch(256, 1, 1);
+	m_computeCmdList()->Dispatch(32, 1, 1);
 
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
 	m_computeCmdList()->Dispatch(1, 1, 1);
@@ -734,7 +734,7 @@ void Renderer::CreateUnorderedAccessResources()
 	desc1.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	   
 	desc1.Buffer.FirstElement = 0;
-	desc1.Buffer.NumElements = 256;
+	desc1.Buffer.NumElements = 32;
 	desc1.Buffer.StructureByteStride = sizeof(int);
 	desc1.Buffer.CounterOffsetInBytes = 0;
 	desc1.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
