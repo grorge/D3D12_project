@@ -277,7 +277,7 @@ void Renderer::RunComputeShader()
 
 	WaitForGpu(m_computeCmdQueue());
 
-	/*m_copyCmdAllocator()->Reset();
+	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
 	m_uavFloat4.DownloadData(m_copyCmdList());
@@ -291,13 +291,13 @@ void Renderer::RunComputeShader()
 
 	WaitForGpu(m_copyCmdQueue());
 
-	float* data = (float*)m_uavFloat4.GetData();
+	/*float* data = (float*)m_uavFloat4.GetData();
 
 	printToDebug("Data: \n");
 	printToDebug((int)data[0]);
-	printToDebug("\n");*/
+	printToDebug("\n");
 
-	//Sleep(1000);
+	Sleep(1000);*/
 }
 
 void Renderer::fillLists()
@@ -830,32 +830,4 @@ void Renderer::UploadData(void * data, const UINT byteWidth, Resource * pDest)
 	
 	WaitForGpu(m_copyCmdQueue());
 	upload.Destroy();
-}
-
-void Renderer::DownloadData(void ** data, const UINT byteWidth, Resource * pSrc)
-{
-	ReadbackResource download;
-	download.Initialize(
-		device4,
-		byteWidth,
-		D3D12_HEAP_FLAG_NONE,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		D3D12_RESOURCE_FLAG_NONE);
-
-	m_copyCmdAllocator()->Reset();
-	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
-
-	m_copyCmdList()->CopyResource(download.mp_resource, pSrc->mp_resource);
-
-	//Close the list to prepare it for execution.
-	m_copyCmdList()->Close();
-
-	//Execute the command list.
-	ID3D12CommandList* listsToExecute1[] = { m_copyCmdList() };
-	m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute1), listsToExecute1);
-
-	WaitForGpu(m_copyCmdQueue());
-
-	*data = download.GetData();
-	download.Destroy();
 }

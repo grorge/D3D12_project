@@ -65,7 +65,6 @@ private:
 	void CreateDepthStencil();
 
 	void UploadData(void* data, const UINT byteWidth, Resource* pDest);
-	void DownloadData(void** data, const UINT byteWidth, Resource* pSrc);
 
 	HWND hwnd;
 
