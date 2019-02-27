@@ -38,4 +38,15 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="UploadResource.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header">
+      <UniqueIdentifier>{78a9e7d9-3677-41e4-86e6-aed1a9df1023}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{9ed925b3-e859-42c3-a11d-becee86f701e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{1e265750-1ed3-45f1-8009-3d1b11025cef}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
 </Project>

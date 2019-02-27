@@ -14,8 +14,6 @@ struct BufTypeIntArray
 	unsigned int arr[256];
 };
 
-//StructuredBuffer<BufType> Buffer0 : register(t0);
-//StructuredBuffer<BufType> Buffer1 : register(t1);
 RWStructuredBuffer<BufTypeFloat4> BufferOut : register(u0);
 RWStructuredBuffer<BufTypeIntArray> BufferOutKeyboard : register(u1);
 
@@ -43,15 +41,5 @@ void main(uint3 DTid : SV_DispatchThreadID)
 		default:
 			break;
 		}
-	//if (BufferOutKeyboard[0].arr[DTid.x] != 0)
-	//	BufferOut[0].x += 20.0f;
-	//if (BufferOutKeyboard[DTid.x].arr[key_A] != 0)
-	//	BufferOut[DTid.x].x += 20.0f;
-	//if (BufferOutKeyboard[DTid.x].arr[key_S] != 0)
-	//	BufferOut[DTid.x].x += 200.0f;
-	//if (BufferOutKeyboard[DTid.x].arr[key_D] != 0)
-	//	BufferOut[DTid.x].x += 2000.0f;
-	//if (BufferOutKeyboard[DTid.x].arr[key_Space] != 0)
-	//	BufferOut[DTid.x].x += 20000.0f;
 
 }
