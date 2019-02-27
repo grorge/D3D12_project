@@ -38,10 +38,10 @@ void Object::update()
 		}
 	}
 
-	if (this->translation.values[1] > 1.0f)
-		this->translation.values[1] = -1.0f;
+	if (this->translation.values[2] > 1.0f)
+		this->translation.values[2] = -1.0f;
 	else					/////1
-		this->translation.values[1] += 0.001f;
+		this->translation.values[2] += 0.001f;
 }
 
 void Object::CreateTriangleData(
@@ -67,7 +67,8 @@ void Object::CreateTriangleData(
 		device4,
 		byteWidth,
 		D3D12_HEAP_FLAG_NONE,
-		D3D12_RESOURCE_STATE_COMMON);
+		D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_FLAG_NONE);
 
 	//Initialize vertex buffer view, used in the render call.
 	vertexBufferView.BufferLocation = m_resource.mp_resource->GetGPUVirtualAddress();//vertexBufferResource->GetGPUVirtualAddress();

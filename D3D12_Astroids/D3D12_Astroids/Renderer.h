@@ -7,8 +7,8 @@
 #include "CommandList.h"
 
 #include "GraphicsPipelineState.h"
+#include "ComputePipelineState.h"
 
-#include "UploadResource.h"
 #include "DescriptorHeap.h"
 
 #include <vector>
@@ -34,13 +34,15 @@ public:
 	void ready();
 	void update();
 	void render();
+	void RunComputeShader();
 
 	ID3D12Device4*				device4 = nullptr;
 
 private:
 	void fillLists();
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
-	void WaitForGpu();
+	void WaitForGpu(ID3D12CommandQueue* queue);
+
 
 	void CreateDirect3DDevice();				
 	void CreateCommandInterfacesAndSwapChain(HWND wndHandle);	
@@ -50,9 +52,12 @@ private:
 	void CreateShadersAndPiplelineState();									
 	void CreateRootSignature();
 	void CreateConstantBufferResources();
+	void CreateUnorderedAccessResources();
 	void CreateDepthStencil();
 
-	MSG msg = { 0 };
+	void UploadData(void* data, const UINT byteWidth, Resource* pDest);
+	void DownloadData(void** data, const UINT byteWidth, Resource* pSrc);
+
 	HWND hwnd;
 
 	HRESULT hr;
@@ -63,10 +68,18 @@ private:
 	CommandAllocator m_graphicsCmdAllocator;
 	CommandList m_graphicsCmdList;
 
-	GraphicsPipelineState m_pipelineState;
+	CommandQueue m_computeCmdQueue;
+	CommandAllocator m_computeCmdAllocator;
+	CommandList m_computeCmdList;
+
+	GraphicsPipelineState m_graphicsState;
+	ComputePipelineState m_computeState;
 
 	DescriptorHeap m_constantBufferHeap;
 	UploadResource m_constantBufferResource[NUM_CONST_BUFFERS];
+
+	DescriptorHeap m_uavHeap;
+	DefaultResource m_uavResource;
 
 	IDXGISwapChain4*			swapChain4 = nullptr;
 

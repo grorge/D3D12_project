@@ -11,8 +11,9 @@ public:
 	virtual void Initialize(
 		ID3D12Device * pDevice,
 		const UINT byteWidth,
-		const D3D12_HEAP_FLAGS flag,
-		const D3D12_RESOURCE_STATES state) = 0;
+		const D3D12_HEAP_FLAGS heapFlag,
+		const D3D12_RESOURCE_STATES state,
+		const D3D12_RESOURCE_FLAGS resourceFlag) = 0;
 
 	void Destroy() { SafeRelease(&mp_resource); };
 

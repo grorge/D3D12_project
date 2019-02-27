@@ -16,6 +16,12 @@ void GraphicsPipelineState::Compile(
 	ID3D12RootSignature* pRootSignature)
 {
 	{
+		D3D12_DEPTH_STENCIL_DESC dsDesc = { };
+		dsDesc.DepthEnable = TRUE;
+		dsDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		dsDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+		dsDesc.StencilEnable = FALSE;
+
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 
 		desc.pRootSignature = pRootSignature;
@@ -29,13 +35,15 @@ void GraphicsPipelineState::Compile(
 		desc.PS.pShaderBytecode = mp_pixelShader->GetBufferPointer();
 		desc.PS.BytecodeLength = mp_pixelShader->GetBufferSize();
 
-
 		//Specify render target and depthstencil usage.
 		desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		desc.NumRenderTargets = 1;
 
 		desc.SampleDesc.Count = 1;
 		desc.SampleMask = UINT_MAX;
+
+		desc.DepthStencilState = dsDesc;
+		desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
 		//Specify rasterizer behaviour.
 		desc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
