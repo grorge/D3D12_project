@@ -325,7 +325,7 @@ void Renderer::RunComputeShader()
 	cb.values[0] = data[0];
 
 	printToDebug("Data: \n");
-	printToDebug(cb.values[0]);
+	printToDebug((int)cb.values[0]);
 	printToDebug("\n");
 
 	Sleep(1000);
