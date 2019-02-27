@@ -316,9 +316,13 @@ void Renderer::RunComputeShader()
 		2,
 		this->m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
 
-	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
-
+	// Shader proccesing keyboard
+	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
 	m_computeCmdList()->Dispatch(1, 1, 1);
+
+	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
+	m_computeCmdList()->Dispatch(1, 1, 1);
+
 
 	m_computeCmdList()->Close();
 
@@ -566,6 +570,9 @@ void Renderer::CreateShadersAndPiplelineState()
 
 	m_computeState.SetComputeShader("ComputeShader.hlsl");
 	m_computeState.Compile(device4, rootSignature);
+
+	m_computeStateKeyboard.SetComputeShader("ComputeShaderKeyboard.hlsl");
+	m_computeStateKeyboard.Compile(device4, rootSignature);
 }
 
 void Renderer::CreateRootSignature()

@@ -4,6 +4,7 @@
     <FxCompile Include="ComputeShader.hlsl" />
     <FxCompile Include="PixelShader.hlsl" />
     <FxCompile Include="VertexShader.hlsl" />
+    <FxCompile Include="ComputeShaderKeyboard.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CommandAllocator.cpp" />
