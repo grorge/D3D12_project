@@ -1,51 +1,115 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <FxCompile Include="ComputeShader.hlsl" />
-    <FxCompile Include="PixelShader.hlsl" />
-    <FxCompile Include="VertexShader.hlsl" />
-    <FxCompile Include="ComputeShaderKeyboard.hlsl" />
+    <FxCompile Include="ComputeShader.hlsl">
+      <Filter>Resources Files</Filter>
+    </FxCompile>
+    <FxCompile Include="ComputeShaderKeyboard.hlsl">
+      <Filter>Resources Files</Filter>
+    </FxCompile>
+    <FxCompile Include="PixelShader.hlsl">
+      <Filter>Resources Files</Filter>
+    </FxCompile>
+    <FxCompile Include="VertexShader.hlsl">
+      <Filter>Resources Files</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CommandAllocator.cpp" />
-    <ClCompile Include="CommandList.cpp" />
-    <ClCompile Include="CommandQueue.cpp" />
-    <ClCompile Include="ComputePipelineState.cpp" />
-    <ClCompile Include="DefaultResource.cpp" />
-    <ClCompile Include="DescriptorHeap.cpp" />
-    <ClCompile Include="GraphicsPipelineState.cpp" />
-    <ClCompile Include="KeyBoardInput.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Object.cpp" />
-    <ClCompile Include="ReadbackResource.cpp" />
-    <ClCompile Include="Renderer.cpp" />
-    <ClCompile Include="UploadResource.cpp" />
+    <ClCompile Include="CommandAllocator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CommandList.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CommandQueue.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ComputePipelineState.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DefaultResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DescriptorHeap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicsPipelineState.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="KeyBoardInput.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Object.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ReadbackResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UploadResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CommandAllocator.h" />
-    <ClInclude Include="CommandList.h" />
-    <ClInclude Include="CommandQueue.h" />
-    <ClInclude Include="ComputePipelineState.h" />
-    <ClInclude Include="D3DHeader.h" />
-    <ClInclude Include="DefaultResource.h" />
-    <ClInclude Include="DescriptorHeap.h" />
-    <ClInclude Include="GraphicsPipelineState.h" />
-    <ClInclude Include="KeyBoardInput.h" />
-    <ClInclude Include="Object.h" />
-    <ClInclude Include="PipelineState.h" />
-    <ClInclude Include="ReadbackResource.h" />
-    <ClInclude Include="Renderer.h" />
-    <ClInclude Include="Resource.h" />
-    <ClInclude Include="UploadResource.h" />
+    <ClInclude Include="CommandAllocator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CommandList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CommandQueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ComputePipelineState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D3DHeader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DefaultResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DescriptorHeap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsPipelineState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="KeyBoardInput.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Object.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PipelineState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ReadbackResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UploadResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Header">
+    <Filter Include="Header Files">
       <UniqueIdentifier>{78a9e7d9-3677-41e4-86e6-aed1a9df1023}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resources">
+    <Filter Include="Resources Files">
       <UniqueIdentifier>{9ed925b3-e859-42c3-a11d-becee86f701e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source">
+    <Filter Include="Source Files">
       <UniqueIdentifier>{1e265750-1ed3-45f1-8009-3d1b11025cef}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
