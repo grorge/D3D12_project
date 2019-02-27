@@ -4,13 +4,13 @@
     <FxCompile Include="ComputeShader.hlsl">
       <Filter>Resources Files</Filter>
     </FxCompile>
-    <FxCompile Include="ComputeShaderKeyboard.hlsl">
-      <Filter>Resources Files</Filter>
-    </FxCompile>
     <FxCompile Include="PixelShader.hlsl">
       <Filter>Resources Files</Filter>
     </FxCompile>
     <FxCompile Include="VertexShader.hlsl">
+      <Filter>Resources Files</Filter>
+    </FxCompile>
+    <FxCompile Include="ComputeShaderKeyboard.hlsl">
       <Filter>Resources Files</Filter>
     </FxCompile>
   </ItemGroup>
