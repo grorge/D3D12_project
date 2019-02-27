@@ -4,80 +4,6 @@
 #include "UploadResource.h"
 #include "ReadbackResource.h"
 
-void UploadResourceData(
-	Resource* pDest,
-	Resource* pSrc,
-	ID3D12GraphicsCommandList* pCmdList)
-{
-	/*
-
-		if pSrc is an uploadResource, transitions may not be allowed
-		https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/ne-d3d12-d3d12_heap_type
-
-	*/
-
-	D3D12_RESOURCE_BARRIER open;
-	open.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	open.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-
-	open.Transition.pResource = pDest->mp_resource;
-	open.Transition.StateBefore = pDest->m_currentState;
-	open.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-	open.Transition.Subresource = 0;
-
-
-	D3D12_RESOURCE_BARRIER close;
-	close.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	close.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-
-	close.Transition.pResource = pDest->mp_resource;
-	close.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	close.Transition.StateAfter = pDest->m_currentState;
-	close.Transition.Subresource = 0;
-
-
-	pCmdList->ResourceBarrier(1, &open);
-	pCmdList->CopyResource(pDest->mp_resource, pSrc->mp_resource);
-	pCmdList->ResourceBarrier(1, &close);
-}
-
-void DownloadResourceData(
-	Resource* pDest,
-	Resource* pSrc,
-	ID3D12GraphicsCommandList* pCmdList)
-{
-	/*
-
-		if pSrc is an uploadResource, transitions may not be allowed
-		https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/ne-d3d12-d3d12_heap_type
-
-	*/
-
-	D3D12_RESOURCE_BARRIER open;
-	open.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	open.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-
-	open.Transition.pResource = pSrc->mp_resource;
-	open.Transition.StateBefore = pSrc->m_currentState;
-	open.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-	open.Transition.Subresource = 0;
-
-
-	D3D12_RESOURCE_BARRIER close;
-	close.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	close.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-
-	close.Transition.pResource = pSrc->mp_resource;
-	close.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-	close.Transition.StateAfter = pSrc->m_currentState;
-	close.Transition.Subresource = 0;
-
-
-	pCmdList->ResourceBarrier(1, &open);
-	pCmdList->CopyResource(pDest->mp_resource, pSrc->mp_resource);
-	pCmdList->ResourceBarrier(1, &close);
-}
-
 Renderer::Renderer()
 {
 }
@@ -269,7 +195,20 @@ void Renderer::update()
 		// Update keyboard
 		//if (keyboard->readKeyboard())
 		keyboard->readKeyboard();
-		this->UploadData(&this->keyboard->keyBoardInt, this->keyboard->keyboardSize, &this->m_uavResourceIntArray);
+
+		m_copyCmdAllocator()->Reset();
+		m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
+
+		m_uavIntArray.UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
+
+		//Close the list to prepare it for execution.
+		m_copyCmdList()->Close();
+
+		//Execute the command list.
+		ID3D12CommandList* listsToExecute0[] = { m_copyCmdList() };
+		m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute0), listsToExecute0);
+
+		WaitForGpu(m_copyCmdQueue());
 	}
 
 	free(translationData);
@@ -317,19 +256,18 @@ void Renderer::RunComputeShader()
 	// Set Root Argument, Index 1
 	m_computeCmdList()->SetComputeRootUnorderedAccessView(
 		1,
-		m_uavResourceFloat4.mp_resource->GetGPUVirtualAddress());
+		m_uavFloat4()->GetGPUVirtualAddress());
 	
 	m_computeCmdList()->SetComputeRootUnorderedAccessView(
 		2, // Index 2
-		this->m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
+		this->m_uavIntArray()->GetGPUVirtualAddress());// m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
 
 	// Shader proccesing keyboard
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
-	m_computeCmdList()->Dispatch(256, 1, 1);
+	//m_computeCmdList()->Dispatch(256, 1, 1);
 
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
 	m_computeCmdList()->Dispatch(1, 1, 1);
-
 
 	m_computeCmdList()->Close();
 
@@ -339,18 +277,27 @@ void Renderer::RunComputeShader()
 
 	WaitForGpu(m_computeCmdQueue());
 
-	const UINT uavSize = (sizeof(ConstantBuffer) + 255) & ~255;	// 256-byte aligned CB.
-	float* data = nullptr;// (float*)malloc(uavSize);
-	DownloadData((void**)&data, uavSize, &m_uavResourceFloat4);
+	/*m_copyCmdAllocator()->Reset();
+	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
-	ConstantBuffer cb;
-	cb.values[0] = data[0];
+	m_uavFloat4.DownloadData(m_copyCmdList());
+
+	//Close the list to prepare it for execution.
+	m_copyCmdList()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute1[] = { m_copyCmdList() };
+	m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute1), listsToExecute1);
+
+	WaitForGpu(m_copyCmdQueue());
+
+	float* data = (float*)m_uavFloat4.GetData();
 
 	printToDebug("Data: \n");
-	printToDebug((int)cb.values[0]);
-	printToDebug("\n");
+	printToDebug((int)data[0]);
+	printToDebug("\n");*/
 
-	Sleep(1000);
+	//Sleep(1000);
 }
 
 void Renderer::fillLists()
@@ -460,6 +407,20 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 		device4,
 		m_computeCmdAllocator(),
 		D3D12_COMMAND_LIST_TYPE_COMPUTE);
+
+	m_copyCmdQueue.Initialize(
+		device4,
+		D3D12_COMMAND_LIST_TYPE_COPY,
+		D3D12_COMMAND_QUEUE_PRIORITY_NORMAL);
+
+	m_copyCmdAllocator.Initialize(
+		device4,
+		D3D12_COMMAND_LIST_TYPE_COPY);
+
+	m_copyCmdList.Initialize(
+		device4,
+		m_copyCmdAllocator(),
+		D3D12_COMMAND_LIST_TYPE_COPY);
 
 
 	m_graphicsCmdQueue.Initialize(
@@ -711,18 +672,23 @@ void Renderer::CreateUnorderedAccessResources()
 		device4,
 		uavSize,
 		D3D12_HEAP_FLAG_NONE,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
+	m_uavFloat4.Initialize(device4, uavSize, true, true);
+
 	device4->CreateUnorderedAccessView(
-		m_uavResourceFloat4.mp_resource,
+		m_uavFloat4(),
 		NULL,
 		&desc,
 		cpuAddress);
+
 	cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	ConstantBuffer data = { 1.0f, 1.0f, 1.0f, 1.0f };
-	this->UploadData(&data, uavSize, &m_uavResourceFloat4);
+	ConstantBuffer data = { 2.0f, 1.0f, 1.0f, 1.0f };
+
+	
+	//WaitForGpu(m_copyCmdQueue());
 
 	//----------
 
@@ -739,21 +705,48 @@ void Renderer::CreateUnorderedAccessResources()
 	desc1.Buffer.CounterOffsetInBytes = 0;
 	desc1.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
-	this->m_uavResourceIntArray.Initialize(
+	/*this->m_uavResourceIntArray.Initialize(
 		device4,
 		uavSize,
 		D3D12_HEAP_FLAG_NONE,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);*/
+
+	m_uavIntArray.Initialize(
+		device4,
+		uavSize,
+		true,
+		false);
+
+	/*device4->CreateUnorderedAccessView(
+		this->m_uavResourceIntArray.mp_resource,
+		NULL,
+		&desc1,
+		cpuAddress);*/
 
 	device4->CreateUnorderedAccessView(
-		this->m_uavResourceIntArray.mp_resource,
+		this->m_uavIntArray(),
 		NULL,
 		&desc1,
 		cpuAddress);
 
-	this->UploadData(&this->keyboard->keyBoardInt, uavSize, &this->m_uavResourceIntArray);
+	//this->UploadData(&this->keyboard->keyBoardInt, uavSize, &this->m_uavResourceIntArray);
 	//this->keyboard->keyboardSize
+
+	m_copyCmdAllocator()->Reset();
+	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
+
+	m_uavFloat4.UploadData(&data, m_copyCmdList());
+	m_uavIntArray.UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
+
+	//Close the list to prepare it for execution.
+	m_copyCmdList()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute1[] = { m_copyCmdList() };
+	m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute1), listsToExecute1);
+
+	WaitForGpu(m_copyCmdQueue());
 }
 
 void Renderer::CreateDepthStencil()
@@ -823,29 +816,24 @@ void Renderer::UploadData(void * data, const UINT byteWidth, Resource * pDest)
 
 	upload.SetData(data);
 
-	m_graphicsCmdAllocator()->Reset();
-	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), nullptr);
+	m_copyCmdAllocator()->Reset();
+	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
-	UploadResourceData(
-		pDest,
-		&upload,
-		m_graphicsCmdList());
+	m_copyCmdList()->CopyResource(pDest->mp_resource, upload.mp_resource);
 
 	//Close the list to prepare it for execution.
-	m_graphicsCmdList()->Close();
+	m_copyCmdList()->Close();
 
 	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
-	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+	ID3D12CommandList* listsToExecute1[] = { m_copyCmdList() };
+	m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute1), listsToExecute1);
 	
-	WaitForGpu(m_graphicsCmdQueue());
+	WaitForGpu(m_copyCmdQueue());
 	upload.Destroy();
 }
 
 void Renderer::DownloadData(void ** data, const UINT byteWidth, Resource * pSrc)
 {
-	WaitForGpu(m_graphicsCmdQueue());
-
 	ReadbackResource download;
 	download.Initialize(
 		device4,
@@ -854,22 +842,19 @@ void Renderer::DownloadData(void ** data, const UINT byteWidth, Resource * pSrc)
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		D3D12_RESOURCE_FLAG_NONE);
 
-	m_graphicsCmdAllocator()->Reset();
-	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), nullptr);
+	m_copyCmdAllocator()->Reset();
+	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
-	DownloadResourceData(
-		&download,
-		pSrc,
-		m_graphicsCmdList());
+	m_copyCmdList()->CopyResource(download.mp_resource, pSrc->mp_resource);
 
 	//Close the list to prepare it for execution.
-	m_graphicsCmdList()->Close();
+	m_copyCmdList()->Close();
 
 	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
-	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+	ID3D12CommandList* listsToExecute1[] = { m_copyCmdList() };
+	m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute1), listsToExecute1);
 
-	WaitForGpu(m_graphicsCmdQueue());
+	WaitForGpu(m_copyCmdQueue());
 
 	*data = download.GetData();
 	download.Destroy();

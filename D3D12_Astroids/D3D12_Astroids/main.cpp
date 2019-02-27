@@ -42,7 +42,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 				if (RUN_COMPUTESHADERS)
 				{
 					render->RunComputeShader();
-
 				}
 			}
 		}
