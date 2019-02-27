@@ -112,6 +112,8 @@ Renderer::~Renderer()
 
 	SafeRelease(&dsDescriptorHeap);
 	SafeRelease(&depthStencilBuffer);
+
+	delete this->keyboard;
 }
 
 void Renderer::init(HWND hwnd)
@@ -312,13 +314,14 @@ void Renderer::RunComputeShader()
 	m_computeCmdList()->SetComputeRootUnorderedAccessView(
 		1,
 		m_uavResourceFloat4.mp_resource->GetGPUVirtualAddress());
+	
 	m_computeCmdList()->SetComputeRootUnorderedAccessView(
-		2,
+		2, // Index 2
 		this->m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
 
 	// Shader proccesing keyboard
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
-	m_computeCmdList()->Dispatch(1, 1, 1);
+	m_computeCmdList()->Dispatch(256, 1, 1);
 
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
 	m_computeCmdList()->Dispatch(1, 1, 1);
