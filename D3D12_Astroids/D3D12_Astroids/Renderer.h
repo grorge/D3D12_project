@@ -24,6 +24,10 @@
 #define CONST_COLOR_INDEX 0
 #define CONST_TRANSLATION_INDEX 1
 
+#define RUN_COMPUTESHADERS 0
+
+
+
 class Renderer
 {
 public:

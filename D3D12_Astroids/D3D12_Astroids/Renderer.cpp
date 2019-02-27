@@ -263,11 +263,14 @@ void Renderer::update()
 	m_constantBufferResource[0].SetData(colorData);
 	m_constantBufferResource[1].SetData(translationData);
 
-	// Update keyboard
-	//if (keyboard->readKeyboard())
-	keyboard->readKeyboard();
-	this->UploadData(&this->keyboard->keyBoardInt, this->keyboard->keyboardSize, &this->m_uavResourceIntArray);
-	
+
+	if (RUN_COMPUTESHADERS)
+	{
+		// Update keyboard
+		//if (keyboard->readKeyboard())
+		keyboard->readKeyboard();
+		this->UploadData(&this->keyboard->keyBoardInt, this->keyboard->keyboardSize, &this->m_uavResourceIntArray);
+	}
 
 	free(translationData);
 	free(colorData);
@@ -305,7 +308,8 @@ void Renderer::RunComputeShader()
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
 	m_computeCmdAllocator()->Reset();
-	m_computeCmdList()->Reset(m_computeCmdAllocator(), m_computeState.mp_pipelineState);
+	m_computeCmdList()->Reset(m_computeCmdAllocator(), nullptr);
+	//m_computeCmdList()->Reset(m_computeCmdAllocator(), m_computeState.mp_pipelineState);
 
 	//Set root signature
 	m_computeCmdList()->SetComputeRootSignature(rootSignature);
@@ -833,7 +837,7 @@ void Renderer::UploadData(void * data, const UINT byteWidth, Resource * pDest)
 	//Execute the command list.
 	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
 	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
-
+	
 	WaitForGpu(m_graphicsCmdQueue());
 	upload.Destroy();
 }
