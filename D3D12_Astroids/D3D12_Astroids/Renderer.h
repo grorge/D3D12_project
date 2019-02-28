@@ -22,6 +22,7 @@
 
 #define NUM_SWAP_BUFFERS 2
 #define NUM_CONST_BUFFERS 2
+#define NUM_UAV_BUFFERS 2
 
 #define CONST_COLOR_INDEX 0
 #define CONST_TRANSLATION_INDEX 1
@@ -94,6 +95,8 @@ private:
 	DescriptorHeap m_uavHeap;
 	DefaultResource m_uavResourceFloat4;
 	DefaultResource m_uavResourceIntArray;
+
+	UAVBuffer m_uavArray[NUM_UAV_BUFFERS];
 
 	UAVBuffer m_uavFloat4, m_uavIntArray;
 

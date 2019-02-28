@@ -23,7 +23,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	render->startGame();
 
 
-
 	if(wndHandle)
 	{
 		ShowWindow(wndHandle, nCmdShow);
