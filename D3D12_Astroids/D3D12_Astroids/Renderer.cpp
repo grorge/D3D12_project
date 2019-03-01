@@ -101,12 +101,21 @@ void Renderer::startGame()
 	const UINT byteWidth = sizeof(triangleVertices);
 	this->UploadData(triangleVertices, byteWidth, &this->objectList[0]->m_resource);
 
-	ConstantBuffer data = { 1.0f, 2.0f, 3.0f, 4.0f };
+	ConstantBuffer data = { 1.0f, 2.0f, 3.0f, 4.0f }; 
+	TranslatonBuffer transData[256];
+	for (int i = 0; i < 256; i++)
+	{
+		transData[i].trans[0] = 2.0f;
+		transData[i].trans[1] = 1.0f;
+		transData[i].trans[2] = 1.0f;
+	}
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
 	m_uavArray[0].UploadData(&data, m_copyCmdList());
 	m_uavIntArray.UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
+	m_uavArray[2].UploadData(&transData, m_copyCmdList());
+
 
 	//Close the list to prepare it for execution.
 	m_copyCmdList()->Close();
@@ -215,7 +224,7 @@ void Renderer::update()
 		m_copyCmdAllocator()->Reset();
 		m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
-		m_uavIntArray.UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
+		m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
 
 		//Close the list to prepare it for execution.
 		m_copyCmdList()->Close();
@@ -280,11 +289,8 @@ void Renderer::RunComputeShader()
 	
 	//m_computeCmdList()->SetComputeRootUnorderedAccessView(
 	//	2, // Index 2
-	//	this->m_uavIntArray()->GetGPUVirtualAddress());// m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
+	//	this->m_uavArray[1]()->GetGPUVirtualAddress());// m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
 
-	m_computeCmdList()->SetComputeRootUnorderedAccessView(
-		3, // Index 3
-		this->m_uavResourceTranslation.mp_resource->GetGPUVirtualAddress());
 
 	// Shader proccesing keyboard
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
@@ -306,6 +312,7 @@ void Renderer::RunComputeShader()
 
 	m_uavArray[0].DownloadData(m_copyCmdList());
 
+
 	//Close the list to prepare it for execution.
 	m_copyCmdList()->Close();
 
@@ -318,12 +325,11 @@ void Renderer::RunComputeShader()
 	float* data = (float*)m_uavArray[0].GetData();
 
 	printToDebug("Data: \n");
-	printToDebug((int)cb.values[0]);
+	printToDebug((int)data[0]);
 	printToDebug(", ");
-	printToDebug((int)cb.values[1]);
-	printToDebug(", ");
-	printToDebug((int)cb.values[2]);
 	printToDebug((int)data[1]);
+	printToDebug(", ");
+	printToDebug((int)data[2]);
 	printToDebug("\n");
 
 	Sleep(1000);
@@ -755,23 +761,38 @@ void Renderer::CreateUnorderedAccessResources()
 		&desc1,
 		cpuAddress);
 */
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC desc2 = {};
+	desc2.Format = DXGI_FORMAT_UNKNOWN;
+	desc2.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+
+	desc2.Buffer.FirstElement = 0;
+	desc2.Buffer.NumElements = 1;
+	desc2.Buffer.StructureByteStride = sizeof(float) * 3;
+	desc2.Buffer.CounterOffsetInBytes = 0;
+	desc2.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
 	const D3D12_UNORDERED_ACCESS_VIEW_DESC descArray[] = {
 		desc0,
 		desc1,
+		desc2,
 	};
 
 	const UINT byteWidthArray[] = {
 		(sizeof(ConstantBuffer) + 255) & ~255,
 		1024,
+		((sizeof(TranslatonBuffer)) + 255) & ~255,
 	};
 
 	const bool cpuWriteArray[] = {
+		true,
 		true,
 		true,
 	};
 
 	const bool cpuReadArray[] = {
 		true,
+		false,
 		false,
 	};
 
@@ -791,47 +812,6 @@ void Renderer::CreateUnorderedAccessResources()
 
 		cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
-}
-	this->UploadData(&this->keyboard->keyBoardInt, uavSize, &this->m_uavResourceIntArray);
-	//this->keyboard->keyboardSize
-
-	//----------
-
-	uavSize = ((sizeof(TranslatonBuffer)) + 255) & ~255;	// 256-byte aligned CB.
-	//uavSize = (sizeof(int) + 255) & ~255;	// 256-byte aligned CB.
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC desc2 = {};
-	desc2.Format = DXGI_FORMAT_UNKNOWN;
-	desc2.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-		
-	desc2.Buffer.FirstElement = 0;
-	desc2.Buffer.NumElements = 1;
-	desc2.Buffer.StructureByteStride = sizeof(float) * 3;
-	desc2.Buffer.CounterOffsetInBytes = 0;
-	desc2.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-
-	this->m_uavResourceTranslation.Initialize(
-		device4,
-		uavSize,
-		D3D12_HEAP_FLAG_NONE,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-	device4->CreateUnorderedAccessView(
-		this->m_uavResourceTranslation.mp_resource,
-		NULL,
-		&desc2,
-		cpuAddress);
-
-	TranslatonBuffer transData[256];
-	for (int i = 0; i < 256; i++)
-	{
-		transData[i].trans[0] = 2.0f;
-		transData[i].trans[1] = 1.0f;
-		transData[i].trans[2] = 1.0f;
-	}
-	this->UploadData(&transData, uavSize, &this->m_uavResourceTranslation);
-	//this->keyboard->keyboardSize
 }
 
 void Renderer::CreateDepthStencil()
