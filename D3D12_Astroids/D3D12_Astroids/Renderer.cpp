@@ -183,6 +183,12 @@ void Renderer::ready()
 
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
+
+	if (WaitForSingleObjectEx(m_hFinishedPresnet, INFINITE, true))
+	{
+		GetLastError();
+	}
+	; 
 	m_graphicsCmdAllocator()->Reset();
 	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), m_graphicsState.mp_pipelineState);
 
@@ -296,9 +302,16 @@ void Renderer::render()
 	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
 	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
+	//DWORD test = 0xFFFFFFFE;
+	//test = WaitForSingleObjectEx(m_hFinishedPresnet, INFINITE, true);
+	
+
+
 	//Present the frame.
 	DXGI_PRESENT_PARAMETERS pp = {};
 	swapChain4->Present1(0, 0, &pp);
+
+	//this->m_hFinishedPresnet = this->swapChain4->GetFrameLatencyWaitableObject();
 }
 
 void Renderer::RunComputeShader()
@@ -491,7 +504,7 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 	scDesc.BufferCount = NUM_SWAP_BUFFERS;
 	scDesc.Scaling = DXGI_SCALING_NONE;
 	scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	scDesc.Flags = 0;
+	scDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 	scDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
 	IDXGISwapChain1* swapChain1 = nullptr;
@@ -510,6 +523,17 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 	}
 
 	SafeRelease(&factory);
+
+	// Create the event to syncronize the frame being presented
+
+	SECURITY_ATTRIBUTES seqAtt;
+	seqAtt.nLength = sizeof(SECURITY_ATTRIBUTES);
+	seqAtt.bInheritHandle = TRUE;
+	seqAtt.lpSecurityDescriptor = 
+
+	this->m_hFinishedPresnet = CreateEventEx(0, TEXT("FrameDone"), 0x00000002, 0x00100000L);
+	this->m_hFinishedPresnet = this->swapChain4->GetFrameLatencyWaitableObject();
+	GetLastError();
 }
 
 void Renderer::CreateFenceAndEventHandle()

@@ -24,7 +24,7 @@
 #define CONST_COLOR_INDEX 0
 #define CONST_TRANSLATION_INDEX 1
 
-#define RUN_COMPUTESHADERS 1
+#define RUN_COMPUTESHADERS 0
 
 
 
@@ -68,6 +68,7 @@ private:
 	HWND hwnd;
 
 	HRESULT hr;
+	HANDLE m_hFinishedPresnet;
 
 	UINT backBufferIndex = 0;
 
