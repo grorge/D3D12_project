@@ -323,6 +323,10 @@ void Renderer::RunComputeShader()
 		2, // Index 2
 		this->m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
 
+	m_computeCmdList()->SetComputeRootUnorderedAccessView(
+		3, // Index 3
+		this->m_uavResourceTranslation.mp_resource->GetGPUVirtualAddress());
+
 	// Shader proccesing keyboard
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
 	m_computeCmdList()->Dispatch(32, 1, 1);
@@ -345,9 +349,15 @@ void Renderer::RunComputeShader()
 
 	ConstantBuffer cb;
 	cb.values[0] = data[0];
+	cb.values[1] = data[1];
+	cb.values[2] = data[2];
 
 	printToDebug("Data: \n");
 	printToDebug((int)cb.values[0]);
+	printToDebug(", ");
+	printToDebug((int)cb.values[1]);
+	printToDebug(", ");
+	printToDebug((int)cb.values[2]);
 	printToDebug("\n");
 
 	Sleep(1000);
@@ -604,7 +614,7 @@ void Renderer::CreateRootSignature()
 	dt.pDescriptorRanges = dtRanges;
 
 	//create root parameter
-	D3D12_ROOT_PARAMETER  rootParam[3];
+	D3D12_ROOT_PARAMETER  rootParam[4];
 	rootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[0].DescriptorTable = dt;
 	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
@@ -631,6 +641,16 @@ void Renderer::CreateRootSignature()
 	rootParam[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
 	rootParam[2].Descriptor = uavDesc1;
 	rootParam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	//create a descriptor table
+	D3D12_ROOT_DESCRIPTOR uavDesc2;
+	uavDesc2.RegisterSpace = 0;
+	uavDesc2.ShaderRegister = 2;
+
+	//create root parameter
+	rootParam[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+	rootParam[3].Descriptor = uavDesc2;
+	rootParam[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -753,6 +773,44 @@ void Renderer::CreateUnorderedAccessResources()
 		cpuAddress);
 
 	this->UploadData(&this->keyboard->keyBoardInt, uavSize, &this->m_uavResourceIntArray);
+	//this->keyboard->keyboardSize
+
+	//----------
+
+	uavSize = ((sizeof(TranslatonBuffer)) + 255) & ~255;	// 256-byte aligned CB.
+	//uavSize = (sizeof(int) + 255) & ~255;	// 256-byte aligned CB.
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC desc2 = {};
+	desc2.Format = DXGI_FORMAT_UNKNOWN;
+	desc2.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		
+	desc2.Buffer.FirstElement = 0;
+	desc2.Buffer.NumElements = 1;
+	desc2.Buffer.StructureByteStride = sizeof(float) * 3;
+	desc2.Buffer.CounterOffsetInBytes = 0;
+	desc2.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+	this->m_uavResourceTranslation.Initialize(
+		device4,
+		uavSize,
+		D3D12_HEAP_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	device4->CreateUnorderedAccessView(
+		this->m_uavResourceTranslation.mp_resource,
+		NULL,
+		&desc2,
+		cpuAddress);
+
+	TranslatonBuffer transData[256];
+	for (int i = 0; i < 256; i++)
+	{
+		transData[i].trans[0] = 2.0f;
+		transData[i].trans[1] = 1.0f;
+		transData[i].trans[2] = 1.0f;
+	}
+	this->UploadData(&transData, uavSize, &this->m_uavResourceTranslation);
 	//this->keyboard->keyboardSize
 }
 

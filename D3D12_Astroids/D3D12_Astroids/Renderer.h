@@ -89,6 +89,7 @@ private:
 	DescriptorHeap m_uavHeap;
 	DefaultResource m_uavResourceFloat4;
 	DefaultResource m_uavResourceIntArray;
+	DefaultResource m_uavResourceTranslation;
 
 	IDXGISwapChain4*			swapChain4 = nullptr;
 

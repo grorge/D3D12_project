@@ -14,6 +14,10 @@ struct ConstantBuffer
 {
 	float values[4];
 };
+struct TranslatonBuffer
+{
+	float trans[3]; // Since we only have 2D, z will be speed
+};
 
 template<class Interface>
 inline void SafeRelease(

@@ -13,30 +13,35 @@ struct BufTypeIntArray
 {
 	unsigned int arr[32];
 };
+struct BufTypeTrans
+{
+	float x, y, z;
+};
 
 RWStructuredBuffer<BufTypeFloat4> BufferOut : register(u0);
-RWStructuredBuffer<BufTypeIntArray> BufferOutKeyboard : register(u1);
+RWStructuredBuffer<BufTypeIntArray> BufferInKeyboard : register(u1);
+RWStructuredBuffer<BufTypeTrans> BufferTrans : register(u2);
 
 [numthreads(32, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	if (BufferOutKeyboard[0].arr[DTid.x] != 0)
+	if (BufferInKeyboard[0].arr[DTid.x] != 0)
 		switch (DTid.x)
 		{
 		case key_W:
-			BufferOut[0].x += 20.0f;
+			BufferTrans[0].x += 1.0f;
 			break;
 		case key_A:
-			BufferOut[0].x += 200.0f;
+			BufferTrans[0].y += 1.0f;
 			break;
 		case key_S:
-			BufferOut[0].x += 2000.0f;
+			BufferTrans[0].x += -1.0f;
 			break;
 		case key_D:
-			BufferOut[0].x += 20000.0f;
+			BufferTrans[0].y += -1.0f;
 			break;
 		case key_Space:
-			BufferOut[0].x += 200000.0f;
+			BufferTrans[0].z += 2.0f;
 			break;
 		default:
 			break;
