@@ -325,11 +325,11 @@ void Renderer::RunComputeShader()
 	float* data = (float*)m_uavArray[0].GetData();
 
 	printToDebug("Data: \n");
-	printToDebug((int)data[0]);
+	printToDebug((float)data[0]);
 	printToDebug(", ");
-	printToDebug((int)data[1]);
+	printToDebug((float)data[1]);
 	printToDebug(", ");
-	printToDebug((int)data[2]);
+	printToDebug((float)data[2]);
 	printToDebug("\n");
 
 	Sleep(1000);
@@ -714,7 +714,7 @@ void Renderer::CreateUnorderedAccessResources()
 	desc0.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
 	desc0.Buffer.FirstElement = 0;
-	desc0.Buffer.NumElements = 1;
+	desc0.Buffer.NumElements = 3;
 	desc0.Buffer.StructureByteStride = sizeof(float);
 	desc0.Buffer.CounterOffsetInBytes = 0;
 	desc0.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
