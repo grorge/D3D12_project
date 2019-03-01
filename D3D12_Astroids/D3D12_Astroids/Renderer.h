@@ -13,6 +13,8 @@
 
 #include "KeyBoardInput.h"
 
+#include "UAVBuffer.h"
+
 #include <vector>
 
 #define SCREEN_WIDTH 640
@@ -20,6 +22,7 @@
 
 #define NUM_SWAP_BUFFERS 2
 #define NUM_CONST_BUFFERS 2
+#define NUM_UAV_BUFFERS 2
 
 #define CONST_COLOR_INDEX 0
 #define CONST_TRANSLATION_INDEX 1
@@ -63,7 +66,6 @@ private:
 	void CreateDepthStencil();
 
 	void UploadData(void* data, const UINT byteWidth, Resource* pDest);
-	void DownloadData(void** data, const UINT byteWidth, Resource* pSrc);
 
 	HWND hwnd;
 
@@ -79,6 +81,10 @@ private:
 	CommandAllocator m_computeCmdAllocator;
 	CommandList m_computeCmdList;
 
+	CommandQueue m_copyCmdQueue;
+	CommandAllocator m_copyCmdAllocator;
+	CommandList m_copyCmdList;
+
 	GraphicsPipelineState m_graphicsState;
 	ComputePipelineState m_computeState;
 	ComputePipelineState m_computeStateKeyboard;
@@ -90,6 +96,10 @@ private:
 	DefaultResource m_uavResourceFloat4;
 	DefaultResource m_uavResourceIntArray;
 	DefaultResource m_uavResourceTranslation;
+
+	UAVBuffer m_uavArray[NUM_UAV_BUFFERS];
+
+	UAVBuffer m_uavFloat4, m_uavIntArray;
 
 	IDXGISwapChain4*			swapChain4 = nullptr;
 

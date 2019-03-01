@@ -54,6 +54,9 @@
     <ClCompile Include="UploadResource.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="UAVBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommandAllocator.h">
@@ -99,6 +102,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="UploadResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UAVBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
