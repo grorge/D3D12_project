@@ -332,6 +332,11 @@ void Renderer::RunComputeShader()
 	printToDebug((float)data[2]);
 	printToDebug("\n");
 
+	this->updateTranslation();
+
+	//this->objectList[0]->translation.values[0] = (float)data[0];
+	//this->objectList[0]->translation.values[1] = (float)data[1];
+
 	Sleep(1000);
 }
 
@@ -358,6 +363,17 @@ void Renderer::SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandLi
 	barrierDesc.Transition.StateAfter = StateAfter;
 
 	commandList->ResourceBarrier(1, &barrierDesc);
+}
+
+void Renderer::updateTranslation()
+{
+	float* data = (float*)m_uavArray[0].GetData();
+
+	for (int i = 0; i < 1/* objectList.size()*/; i++)
+	{
+		objectList[i]->translation.values[0] = data[0];
+		objectList[i]->translation.values[1] = data[1];
+	}
 }
 
 void Renderer::WaitForGpu(ID3D12CommandQueue* queue)
@@ -714,7 +730,7 @@ void Renderer::CreateUnorderedAccessResources()
 	desc0.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
 	desc0.Buffer.FirstElement = 0;
-	desc0.Buffer.NumElements = 3;
+	desc0.Buffer.NumElements = 4;
 	desc0.Buffer.StructureByteStride = sizeof(float);
 	desc0.Buffer.CounterOffsetInBytes = 0;
 	desc0.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
@@ -743,6 +759,7 @@ void Renderer::CreateUnorderedAccessResources()
 
 	//const UINT uavSize = 1024; // 1024-byte aligned CB.
 
+	// The Keyboard UAV
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc1 = {};
 	desc1.Format = DXGI_FORMAT_UNKNOWN;
 	desc1.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;

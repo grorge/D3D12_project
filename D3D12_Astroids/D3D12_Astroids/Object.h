@@ -24,6 +24,7 @@ public:
 	void update();
 
 	DefaultResource m_resource;
+	ConstantBuffer translation = {};
 
 private:
 	void CreateTriangleData(ID3D12Device4* device4);
@@ -32,6 +33,5 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW	vertexBufferView = {};
 
 	ConstantBuffer				color = {};
-	ConstantBuffer				translation = {};
 
 };

@@ -15,7 +15,7 @@ RWStructuredBuffer<BufTypeTrans> BufferTrans : register(u2);
 [numthreads(1, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	BufferOut[DTid.x].x = BufferTrans[0].x;
-	BufferOut[DTid.x].y = BufferTrans[0].y;
-	BufferOut[DTid.x].z = BufferTrans[0].z;
+	BufferOut[DTid.x].x = BufferTrans[DTid.x].x;
+	BufferOut[DTid.x].y = BufferTrans[DTid.x].y;
+	BufferOut[DTid.x].z = BufferTrans[DTid.x].z;
 }

@@ -29,16 +29,16 @@ void main(uint3 DTid : SV_DispatchThreadID)
 		switch (DTid.x)
 		{
 		case key_W:
-			BufferTrans[0].x += 1.0f;
-			break;
-		case key_A:
 			BufferTrans[0].y += 1.0f;
 			break;
-		case key_S:
+		case key_A:
 			BufferTrans[0].x += -1.0f;
 			break;
-		case key_D:
+		case key_S:
 			BufferTrans[0].y += -1.0f;
+			break;
+		case key_D:
+			BufferTrans[0].x += 1.0f;
 			break;
 		case key_Space:
 			BufferTrans[0].z += 2.0f;

@@ -50,6 +50,7 @@ public:
 private:
 	void fillLists();
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
+	void updateTranslation();
 	void WaitForGpu(ID3D12CommandQueue* queue);
 
 
