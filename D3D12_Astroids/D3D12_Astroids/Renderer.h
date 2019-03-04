@@ -24,7 +24,7 @@
 #define CONST_COLOR_INDEX 0
 #define CONST_TRANSLATION_INDEX 1
 
-#define RUN_COMPUTESHADERS 0
+#define RUN_COMPUTESHADERS 1
 
 
 
@@ -82,6 +82,7 @@ private:
 	GraphicsPipelineState m_graphicsState;
 	ComputePipelineState m_computeState;
 	ComputePipelineState m_computeStateKeyboard;
+	ComputePipelineState m_computeStateDraw;
 
 	DescriptorHeap m_constantBufferHeap;
 	UploadResource m_constantBufferResource[NUM_CONST_BUFFERS];
@@ -89,6 +90,8 @@ private:
 	DescriptorHeap m_uavHeap;
 	DefaultResource m_uavResourceFloat4;
 	DefaultResource m_uavResourceIntArray;
+	DefaultResource m_uavResourceDraw;
+
 
 	IDXGISwapChain4*			swapChain4 = nullptr;
 

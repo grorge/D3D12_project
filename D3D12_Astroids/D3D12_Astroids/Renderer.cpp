@@ -323,11 +323,18 @@ void Renderer::RunComputeShader()
 		2, // Index 2
 		this->m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
 
+	m_computeCmdList()->SetComputeRootUnorderedAccessView(
+		3, // Index 3
+		m_uavResourceDraw.mp_resource->GetGPUVirtualAddress());
+
 	// Shader proccesing keyboard
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
-	m_computeCmdList()->Dispatch(256, 1, 1);
+	m_computeCmdList()->Dispatch(40, 1, 1);
 
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
+	m_computeCmdList()->Dispatch(1, 1, 1);
+
+	m_computeCmdList()->SetPipelineState(m_computeStateDraw.mp_pipelineState);
 	m_computeCmdList()->Dispatch(1, 1, 1);
 
 
@@ -346,7 +353,15 @@ void Renderer::RunComputeShader()
 	ConstantBuffer cb;
 	cb.values[0] = data[0];
 
-	printToDebug("Data: \n");
+	printToDebug("Data Filip: \n");
+	printToDebug((int)cb.values[0]);
+	printToDebug("\n");
+
+	DownloadData((void**)&data, uavSize, &m_uavResourceDraw);
+
+	cb.values[0] = data[0];
+
+	printToDebug("Data Hampus: \n");
 	printToDebug((int)cb.values[0]);
 	printToDebug("\n");
 
@@ -580,6 +595,9 @@ void Renderer::CreateShadersAndPiplelineState()
 
 	m_computeStateKeyboard.SetComputeShader("ComputeShaderKeyboard.hlsl");
 	m_computeStateKeyboard.Compile(device4, rootSignature);
+
+	m_computeStateDraw.SetComputeShader("ComputeShaderDraw.hlsl");
+	m_computeStateDraw.Compile(device4, rootSignature);
 }
 
 void Renderer::CreateRootSignature()
@@ -604,7 +622,7 @@ void Renderer::CreateRootSignature()
 	dt.pDescriptorRanges = dtRanges;
 
 	//create root parameter
-	D3D12_ROOT_PARAMETER  rootParam[3];
+	D3D12_ROOT_PARAMETER  rootParam[4];
 	rootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[0].DescriptorTable = dt;
 	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
@@ -631,6 +649,16 @@ void Renderer::CreateRootSignature()
 	rootParam[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
 	rootParam[2].Descriptor = uavDesc1;
 	rootParam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	//create a descriptor table
+	D3D12_ROOT_DESCRIPTOR uavDesc2;
+	uavDesc2.RegisterSpace = 0;
+	uavDesc2.ShaderRegister = 2;
+
+	//create root parameter
+	rootParam[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+	rootParam[3].Descriptor = uavDesc2;
+	rootParam[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -701,7 +729,7 @@ void Renderer::CreateUnorderedAccessResources()
 	m_uavHeap.Initialize(
 		device4,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		2);
+		3);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuAddress =
 		m_uavHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -751,9 +779,41 @@ void Renderer::CreateUnorderedAccessResources()
 		NULL,
 		&desc1,
 		cpuAddress);
+	cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	this->UploadData(&this->keyboard->keyBoardInt, uavSize, &this->m_uavResourceIntArray);
 	//this->keyboard->keyboardSize
+
+	/******************************************************************/
+	D3D12_UNORDERED_ACCESS_VIEW_DESC desc2 = {};
+	desc2.Format = DXGI_FORMAT_UNKNOWN;
+	desc2.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+
+	desc2.Buffer.FirstElement = 0;
+	desc2.Buffer.NumElements = 1;
+	desc2.Buffer.StructureByteStride = sizeof(float);
+	desc2.Buffer.CounterOffsetInBytes = 0;
+	desc2.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+
+	m_uavResourceDraw.Initialize(
+		device4,
+		uavSize,
+		D3D12_HEAP_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	device4->CreateUnorderedAccessView(
+		m_uavResourceDraw.mp_resource,
+		NULL,
+		&desc2,
+		cpuAddress);
+	cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	this->UploadData(&data, uavSize, &m_uavResourceDraw);
+	/*****************************************************************/
+
+
 }
 
 void Renderer::CreateDepthStencil()
