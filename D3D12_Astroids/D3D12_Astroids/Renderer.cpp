@@ -1,9 +1,5 @@
 #include "Renderer.h"
 
-
-#include "UploadResource.h"
-#include "ReadbackResource.h"
-
 Renderer::Renderer()
 {
 }
@@ -101,7 +97,7 @@ void Renderer::startGame()
 	const UINT byteWidth = sizeof(triangleVertices);
 	this->UploadData(triangleVertices, byteWidth, &this->objectList[0]->m_resource);
 
-	ConstantBuffer data = { 1.0f, 2.0f, 3.0f, 4.0f };
+	ConstantBuffer data = { 0.0f, 0.0f, 0.0f, 0.0f };
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
@@ -283,7 +279,7 @@ void Renderer::RunComputeShader()
 	//	this->m_uavIntArray()->GetGPUVirtualAddress());// m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
 
 	// Shader proccesing keyboard
-	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
+	//m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
 	//m_computeCmdList()->Dispatch(256, 1, 1);
 
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
@@ -313,9 +309,14 @@ void Renderer::RunComputeShader()
 
 	float* data = (float*)m_uavArray[0].GetData();
 
-	printToDebug("Data: \n");
+	printToDebug("\n__Data__\nx: ");
+	printToDebug((int)data[0]);
+	printToDebug("\ny: ");
 	printToDebug((int)data[1]);
-	printToDebug("\n");
+	printToDebug("\nz: ");
+	printToDebug((int)data[2]);
+	printToDebug("\nw: ");
+	printToDebug((int)data[3]);
 
 	Sleep(1000);
 }
@@ -476,7 +477,7 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 	scDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
 	IDXGISwapChain1* swapChain1 = nullptr;
-	if (SUCCEEDED(factory->CreateSwapChainForHwnd(
+	if (SUCCEEDED(hr = factory->CreateSwapChainForHwnd(
 		m_graphicsCmdQueue(),
 		wndHandle,
 		&scDesc,
@@ -566,23 +567,32 @@ void Renderer::CreateShadersAndPiplelineState()
 void Renderer::CreateRootSignature()
 {
 	//define descriptor range(s)
-	D3D12_DESCRIPTOR_RANGE  dtRanges[2];
-	dtRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	dtRanges[0].NumDescriptors = 1; //only one CB in this example
-	dtRanges[0].BaseShaderRegister = 0; //register b0
-	dtRanges[0].RegisterSpace = 0; //register(b0,space0);
-	dtRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	D3D12_DESCRIPTOR_RANGE  dtRanges;
+	dtRanges.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	dtRanges.NumDescriptors = NUM_CONST_BUFFERS; //only one CB in this example
+	dtRanges.BaseShaderRegister = 0; //register b0
+	dtRanges.RegisterSpace = 0; //register(b0,space0);
+	dtRanges.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	
-	dtRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	dtRanges[1].NumDescriptors = 1; //only one CB in this example
-	dtRanges[1].BaseShaderRegister = 1; //register b0
-	dtRanges[1].RegisterSpace = 0; //register(b0,space0);
-	dtRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
 	//create a descriptor table
 	D3D12_ROOT_DESCRIPTOR_TABLE dt;
-	dt.NumDescriptorRanges = ARRAYSIZE(dtRanges);
-	dt.pDescriptorRanges = dtRanges;
+	dt.NumDescriptorRanges = 1;
+	dt.pDescriptorRanges = &dtRanges;
+
+
+	//define descriptor range(s)
+	D3D12_DESCRIPTOR_RANGE  uavRanges;
+	uavRanges.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	uavRanges.NumDescriptors = NUM_UAV_BUFFERS; //only one CB in this example
+	uavRanges.BaseShaderRegister = 0; //register b0
+	uavRanges.RegisterSpace = 0; //register(b0,space0);
+	uavRanges.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	//create a descriptor table
+	D3D12_ROOT_DESCRIPTOR_TABLE uavDt;
+	uavDt.NumDescriptorRanges = 1;
+	uavDt.pDescriptorRanges = &uavRanges;
+
 
 	//create root parameter
 	D3D12_ROOT_PARAMETER  rootParam[2];
@@ -590,44 +600,9 @@ void Renderer::CreateRootSignature()
 	rootParam[0].DescriptorTable = dt;
 	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 
-
-	//define descriptor range(s)
-	D3D12_DESCRIPTOR_RANGE  uavRanges[NUM_UAV_BUFFERS];
-
-	for (int i = 0; i < NUM_UAV_BUFFERS; i++)
-	{
-		uavRanges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		uavRanges[i].NumDescriptors = 1; //only one CB in this example
-		uavRanges[i].BaseShaderRegister = i; //register b0
-		uavRanges[i].RegisterSpace = 0; //register(b0,space0);
-		uavRanges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-	}
-
-	//create a descriptor table
-	D3D12_ROOT_DESCRIPTOR_TABLE uavDt;
-	uavDt.NumDescriptorRanges = ARRAYSIZE(uavRanges);
-	uavDt.pDescriptorRanges = uavRanges;
-
-	//create a descriptor table
-	//D3D12_ROOT_DESCRIPTOR uavDesc;
-	//uavDesc.RegisterSpace = 0;
-	//uavDesc.ShaderRegister = 0;
-
-
-	////create root parameter
 	rootParam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[1].DescriptorTable = uavDt;
 	rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-	////create a descriptor table
-	//D3D12_ROOT_DESCRIPTOR uavDesc1;
-	//uavDesc1.RegisterSpace = 0;
-	//uavDesc1.ShaderRegister = 1;
-
-	////create root parameter
-	//rootParam[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
-	//rootParam[2].Descriptor = uavDesc1;
-	//rootParam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -692,67 +667,33 @@ void Renderer::CreateUnorderedAccessResources()
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuAddress =
 		m_uavHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
-	//UINT uavSize = (sizeof(ConstantBuffer) + 255) & ~255;	// 256-byte aligned CB.
-
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc0 = {};
-	desc0.Format = DXGI_FORMAT_UNKNOWN;
+	desc0.Format = DXGI_FORMAT_R32_FLOAT;
 	desc0.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
 	desc0.Buffer.FirstElement = 0;
-	desc0.Buffer.NumElements = 1;
-	desc0.Buffer.StructureByteStride = sizeof(float);
+	desc0.Buffer.NumElements = 4;
+	desc0.Buffer.StructureByteStride = 0;
 	desc0.Buffer.CounterOffsetInBytes = 0;
 	desc0.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
-
-
-	/*m_uavResourceFloat4.Initialize(
-		device4,
-		uavSize,
-		D3D12_HEAP_FLAG_NONE,
-		D3D12_RESOURCE_STATE_COMMON,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-	m_uavFloat4.Initialize(device4, uavSize, true, true);
-
-	device4->CreateUnorderedAccessView(
-		m_uavFloat4(),
-		NULL,
-		&desc0,
-		cpuAddress);*/
-
-	//cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-
-	//----------
-
-	//const UINT uavSize = 1024; // 1024-byte aligned CB.
-
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc1 = {};
-	desc1.Format = DXGI_FORMAT_UNKNOWN;
+	desc1.Format = DXGI_FORMAT_R32_UINT;
 	desc1.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	   
 	desc1.Buffer.FirstElement = 0;
 	desc1.Buffer.NumElements = 256;
-	desc1.Buffer.StructureByteStride = sizeof(int);
+	desc1.Buffer.StructureByteStride = 0;
 	desc1.Buffer.CounterOffsetInBytes = 0;
 	desc1.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
-	/*m_uavIntArray.Initialize(device4, uavSize, true, false);
-
-	device4->CreateUnorderedAccessView(
-		this->m_uavIntArray(),
-		NULL,
-		&desc1,
-		cpuAddress);
-*/
 	const D3D12_UNORDERED_ACCESS_VIEW_DESC descArray[] = {
 		desc0,
 		desc1,
 	};
 
 	const UINT byteWidthArray[] = {
-		(sizeof(ConstantBuffer) + 255) & ~255,
+		32,
 		1024,
 	};
 
