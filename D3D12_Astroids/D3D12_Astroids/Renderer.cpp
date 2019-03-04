@@ -107,7 +107,7 @@ void Renderer::startGame()
 	{
 		transData[i].trans[0] = 2.0f;
 		transData[i].trans[1] = 1.0f;
-		transData[i].trans[2] = 1.0f;
+		transData[i].trans[2] = 3.0f;
 	}
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
@@ -296,8 +296,12 @@ void Renderer::RunComputeShader()
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
 	m_computeCmdList()->Dispatch(32, 1, 1);
 
+	// Shader looking for collision
+	m_computeCmdList()->SetPipelineState(m_computeStateCollision.mp_pipelineState);
+	m_computeCmdList()->Dispatch(32, 1, 1);
+
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
-	m_computeCmdList()->Dispatch(1, 1, 1);
+	m_computeCmdList()->Dispatch(3, 1, 1);
 
 	m_computeCmdList()->Close();
 
@@ -369,10 +373,10 @@ void Renderer::updateTranslation()
 {
 	float* data = (float*)m_uavArray[0].GetData();
 
-	for (int i = 0; i < 1/* objectList.size()*/; i++)
+	for (int i = 0; i < 3/* objectList.size()*/; i++)
 	{
-		objectList[i]->translation.values[0] = data[0];
-		objectList[i]->translation.values[1] = data[1];
+		objectList[i]->translation.values[0] = data[0 + (i * 4)];
+		objectList[i]->translation.values[1] = data[1 + (i * 4)];
 	}
 }
 
@@ -592,6 +596,9 @@ void Renderer::CreateShadersAndPiplelineState()
 
 	m_computeStateKeyboard.SetComputeShader("ComputeShaderKeyboard.hlsl");
 	m_computeStateKeyboard.Compile(device4, rootSignature);
+
+	m_computeStateCollision.SetComputeShader("ComputeShaderCollision.hlsl");
+	m_computeStateCollision.Compile(device4, rootSignature);
 }
 
 void Renderer::CreateRootSignature()
@@ -730,7 +737,7 @@ void Renderer::CreateUnorderedAccessResources()
 	desc0.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
 	desc0.Buffer.FirstElement = 0;
-	desc0.Buffer.NumElements = 4;
+	desc0.Buffer.NumElements = 12;
 	desc0.Buffer.StructureByteStride = sizeof(float);
 	desc0.Buffer.CounterOffsetInBytes = 0;
 	desc0.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;

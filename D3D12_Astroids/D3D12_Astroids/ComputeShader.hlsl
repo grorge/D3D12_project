@@ -12,10 +12,17 @@ struct BufTypeTrans
 RWStructuredBuffer<BufTypeFloat4> BufferOut : register(u0);
 RWStructuredBuffer<BufTypeTrans> BufferTrans : register(u2);
 
-[numthreads(1, 1, 1)]
+[numthreads(3, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
 	BufferOut[DTid.x].x = BufferTrans[DTid.x].x;
 	BufferOut[DTid.x].y = BufferTrans[DTid.x].y;
 	BufferOut[DTid.x].z = BufferTrans[DTid.x].z;
+	//BufferOut[DTid.x].x = 0.5f;
+	//BufferOut[DTid.x].y = 0.5f;
+	//BufferOut[DTid.x].z = 0.5f;
+
+	//BufferOut[DTid.x].x = DTid.x;
+	//BufferOut[DTid.x].y = BufferTrans[DTid.x].y;
+	//BufferOut[DTid.x].z = BufferTrans[DTid.x].z;
 }

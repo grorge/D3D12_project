@@ -89,6 +89,7 @@ private:
 	GraphicsPipelineState m_graphicsState;
 	ComputePipelineState m_computeState;
 	ComputePipelineState m_computeStateKeyboard;
+	ComputePipelineState m_computeStateCollision;
 
 	DescriptorHeap m_constantBufferHeap;
 	UploadResource m_constantBufferResource[NUM_CONST_BUFFERS];
