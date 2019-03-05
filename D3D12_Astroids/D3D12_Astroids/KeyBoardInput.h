@@ -19,7 +19,7 @@ public:
 	void sendToGPU();
 	void printKeyboard();
 
-	int keyBoardInt[256];
+	int keyBoardInt[32];
 	UINT keyboardSize;
 private:
 	PBYTE keyBoardState;

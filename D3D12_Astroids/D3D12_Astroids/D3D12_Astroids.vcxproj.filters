@@ -13,9 +13,6 @@
     <FxCompile Include="ComputeShaderKeyboard.hlsl">
       <Filter>Resources Files</Filter>
     </FxCompile>
-    <FxCompile Include="ComputeShaderDraw.hlsl">
-      <Filter>Resources Files</Filter>
-    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CommandAllocator.cpp">
@@ -55,6 +52,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="UploadResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UAVBuffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -104,7 +104,7 @@
     <ClInclude Include="UploadResource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
+    <ClInclude Include="UAVBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

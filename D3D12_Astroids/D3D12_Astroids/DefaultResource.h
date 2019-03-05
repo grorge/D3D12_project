@@ -23,5 +23,4 @@ public:
 		const D3D12_RESOURCE_FLAGS resourceFlag);
 
 private:
-
 };

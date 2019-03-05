@@ -22,10 +22,20 @@ bool KeyBoardInput::readKeyboard()
 	//GetKeyboardState(this->keyBoardState);
 	bool keyPressed = false;
 
+	 //key_W 0x57
+	 //key_A 0x41
+	 //key_S 0x53
+	 //key_D 0x44
+	 //key_Space 0x20
+
+	this->keyBoardInt[0] = (int)(GetAsyncKeyState(0x57));
+	this->keyBoardInt[1] = (int)(GetAsyncKeyState(0x41));
+	this->keyBoardInt[2] = (int)(GetAsyncKeyState(0x53));
+	this->keyBoardInt[3] = (int)(GetAsyncKeyState(0x44));
+	this->keyBoardInt[4] = (int)(GetAsyncKeyState(0x20));
 	// This can be done in threads
-	for (int i = 0; i < 256; i++)
+	for (int i = 0; i < 32; i++)
 	{
-		this->keyBoardInt[i] = (int)(GetAsyncKeyState(i));
 		if (this->keyBoardInt[i] > 0)
 			keyPressed = true;
 	}
