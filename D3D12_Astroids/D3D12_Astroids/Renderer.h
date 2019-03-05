@@ -24,7 +24,7 @@
 #define CONST_COLOR_INDEX 0
 #define CONST_TRANSLATION_INDEX 1
 
-#define RUN_COMPUTESHADERS 1
+#define RUN_COMPUTESHADERS 0
 
 
 
@@ -61,6 +61,7 @@ private:
 	void CreateConstantBufferResources();
 	void CreateUnorderedAccessResources();
 	void CreateDepthStencil();
+	void CreateTex2DCompute();
 
 	void UploadData(void* data, const UINT byteWidth, Resource* pDest);
 	void DownloadData(void** data, const UINT byteWidth, Resource* pSrc);
@@ -91,6 +92,11 @@ private:
 	DefaultResource m_uavResourceFloat4;
 	DefaultResource m_uavResourceIntArray;
 	DefaultResource m_uavResourceDraw;
+
+	ID3D12Resource* m_texture;
+	ID3D12Resource* texUploadHeap;
+	ID3D12DescriptorHeap* m_srvHeap;
+	ID3D12DescriptorHeap* m_samplerHeap;
 
 
 	IDXGISwapChain4*			swapChain4 = nullptr;

@@ -152,17 +152,21 @@ void Renderer::startGame()
 {
 	Vertex triangleVertices[4] =
 	{
-		-0.5f, -0.5f, 0.0f,	//v0 pos
-		1.0f, 0.0f, 0.0f,	//v0 color
+		-1.0f, -1.0f, 0.0f,	//v0 pos
+		0.0f, 1.0f,			//v0 uv
+		//1.0f, 0.0f, 0.0f,	//v0 color
 
-		-0.5f, 0.5f, 1.0f,	//v1
-		0.0f, 1.0f, 0.0f,	//v1 color
+		-1.0f, 1.0f, 1.0f,	//v1
+		0.0f, 0.0f,			//v1 uv
+		//0.0f, 1.0f, 0.0f,	//v1 color
 
-		0.5f, -0.5f, 0.0f, //v2
-		0.0f, 0.0f, 1.0f,	//v2 color
+		1.0f, -1.0f, 0.0f,  //v2
+		1.0f, 1.0f,			//v2 uv
+		//0.0f, 0.0f, 1.0f,	//v2 color
 
-		0.5f, 0.5f, -1.0f, //v3
-		0.0f, 0.0f, 1.0f	//v3 color
+		1.0f, 1.0f, -1.0f,  //v3
+		1.0f, 0.0f,			//v3 uv
+		//1.0f, 1.0f, 0.0f	//v3 color
 	};
 
 	this->object = new Object(this->device4, 1);
@@ -323,9 +327,9 @@ void Renderer::RunComputeShader()
 		2, // Index 2
 		this->m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
 
-	m_computeCmdList()->SetComputeRootUnorderedAccessView(
-		3, // Index 3
-		m_uavResourceDraw.mp_resource->GetGPUVirtualAddress());
+//	m_computeCmdList()->SetComputeRootUnorderedAccessView(
+//		3, // Index 3
+//		m_uavResourceDraw.mp_resource->GetGPUVirtualAddress());
 
 	// Shader proccesing keyboard
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
@@ -334,8 +338,8 @@ void Renderer::RunComputeShader()
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
 	m_computeCmdList()->Dispatch(1, 1, 1);
 
-	m_computeCmdList()->SetPipelineState(m_computeStateDraw.mp_pipelineState);
-	m_computeCmdList()->Dispatch(1, 1, 1);
+	//m_computeCmdList()->SetPipelineState(m_computeStateDraw.mp_pipelineState);
+	//m_computeCmdList()->Dispatch(1, 1, 1);
 
 
 	m_computeCmdList()->Close();
@@ -357,6 +361,7 @@ void Renderer::RunComputeShader()
 	printToDebug((int)cb.values[0]);
 	printToDebug("\n");
 
+	/*
 	DownloadData((void**)&data, uavSize, &m_uavResourceDraw);
 
 	cb.values[0] = data[0];
@@ -364,7 +369,7 @@ void Renderer::RunComputeShader()
 	printToDebug("Data Hampus: \n");
 	printToDebug((int)cb.values[0]);
 	printToDebug("\n");
-
+	*/
 	Sleep(1000);
 }
 
@@ -577,7 +582,8 @@ void Renderer::CreateShadersAndPiplelineState()
 	////// Input Layout //////
 	D3D12_INPUT_ELEMENT_DESC inputElementDesc[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR"	, 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "TEXCOORD"	, 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		//{ "COLOR"	, 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc;
@@ -603,7 +609,7 @@ void Renderer::CreateShadersAndPiplelineState()
 void Renderer::CreateRootSignature()
 {
 	//define descriptor range(s)
-	D3D12_DESCRIPTOR_RANGE  dtRanges[2];
+	D3D12_DESCRIPTOR_RANGE  dtRanges[3];
 	dtRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	dtRanges[0].NumDescriptors = 1; //only one CB in this example
 	dtRanges[0].BaseShaderRegister = 0; //register b0
@@ -616,18 +622,25 @@ void Renderer::CreateRootSignature()
 	dtRanges[1].RegisterSpace = 0; //register(b0,space0);
 	dtRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+	/*********************************************/
+	dtRanges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	dtRanges[2].NumDescriptors = 1; //only one CB in this example
+	dtRanges[2].BaseShaderRegister = 2; //register t2
+	dtRanges[2].RegisterSpace = 0; //register(b0,space0);
+	dtRanges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	
+	/********************************************/
+
 	//create a descriptor table
 	D3D12_ROOT_DESCRIPTOR_TABLE dt;
 	dt.NumDescriptorRanges = ARRAYSIZE(dtRanges);
 	dt.pDescriptorRanges = dtRanges;
 
 	//create root parameter
-	D3D12_ROOT_PARAMETER  rootParam[4];
+	D3D12_ROOT_PARAMETER  rootParam[5];
 	rootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[0].DescriptorTable = dt;
 	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-
-
 
 	//create a descriptor table
 	D3D12_ROOT_DESCRIPTOR uavDesc;
@@ -659,6 +672,10 @@ void Renderer::CreateRootSignature()
 	rootParam[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
 	rootParam[3].Descriptor = uavDesc2;
 	rootParam[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	rootParam[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam[4].DescriptorTable = dt;
+	rootParam[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -784,7 +801,7 @@ void Renderer::CreateUnorderedAccessResources()
 	this->UploadData(&this->keyboard->keyBoardInt, uavSize, &this->m_uavResourceIntArray);
 	//this->keyboard->keyboardSize
 
-	/******************************************************************/
+	/******************************************************************
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc2 = {};
 	desc2.Format = DXGI_FORMAT_UNKNOWN;
 	desc2.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -796,7 +813,7 @@ void Renderer::CreateUnorderedAccessResources()
 	desc2.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
 
-	m_uavResourceDraw.Initialize(
+	m_uavResourceDraw.InitializeTex2D(
 		device4,
 		uavSize,
 		D3D12_HEAP_FLAG_NONE,
@@ -811,6 +828,96 @@ void Renderer::CreateUnorderedAccessResources()
 	cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	this->UploadData(&data, uavSize, &m_uavResourceDraw);
+	/*****************************************************************/
+
+	//HEAP
+
+	// Describe and create a shader resource view (SRV) heap for the texture.
+	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+	srvHeapDesc.NumDescriptors = 1;
+	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	device4->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap));
+
+
+	//TEXTURE
+	int texWidth = 256;
+	int texHeight = 256;
+	int texturePixelSize = 4;
+	D3D12_RESOURCE_DESC texDesc = {};
+	texDesc.MipLevels = 1;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	texDesc.Width = texWidth;
+	texDesc.Height = texHeight;
+	texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	texDesc.DepthOrArraySize = 1;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+	device4->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&texDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&m_texture)
+		);
+
+	int uploadBuffSize = texWidth * texHeight * sizeof(float) * texturePixelSize;
+
+	device4->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(uploadBuffSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&texUploadHeap)
+		);
+
+	std::vector<float> texture;
+
+	for (int i = 0; i < texWidth * texHeight; i += texturePixelSize)
+	{
+		texture.push_back(1.0f); //R
+		texture.push_back(0.0f); //G
+		texture.push_back(0.0f); //B
+		texture.push_back(1.0f); //A
+	}
+
+	D3D12_SUBRESOURCE_DATA texData = {};
+	texData.pData = &texture[0];
+	texData.RowPitch = texWidth * texturePixelSize;
+	texData.SlicePitch = texData.RowPitch * texHeight;
+
+	UpdateSubresources(m_graphicsCmdList.getCmdList(), m_texture, texUploadHeap, 0, 0, 1, &texData);
+
+	D3D12_DESCRIPTOR_HEAP_DESC heapDescSampler = {};
+	heapDescSampler.NumDescriptors = 1;
+	heapDescSampler.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDescSampler.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	device4->CreateDescriptorHeap(&heapDescSampler, IID_PPV_ARGS(&m_samplerHeap));
+
+	// Describe and create a SRV for the texture.
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = texDesc.Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	device4->CreateShaderResourceView(m_texture, &srvDesc, m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+
+
+
+
+	D3D12_SAMPLER_DESC sampDesc = {};
+	sampDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	sampDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	sampDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE sampCpuHandle;
+	sampCpuHandle = m_samplerHeap->GetCPUDescriptorHandleForHeapStart();
+	UINT samplerSize = device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	device4->CreateSampler(&sampDesc, sampCpuHandle);
 	/*****************************************************************/
 
 
@@ -933,4 +1040,10 @@ void Renderer::DownloadData(void ** data, const UINT byteWidth, Resource * pSrc)
 
 	*data = download.GetData();
 	download.Destroy();
+}
+
+
+void Renderer::CreateTex2DCompute()
+{
+
 }

@@ -120,6 +120,7 @@
     <ClInclude Include="CommandQueue.h" />
     <ClInclude Include="ComputePipelineState.h" />
     <ClInclude Include="D3DHeader.h" />
+    <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DefaultResource.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="GraphicsPipelineState.h" />

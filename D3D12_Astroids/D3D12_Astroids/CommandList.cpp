@@ -29,6 +29,11 @@ void CommandList::Destroy()
 	}
 }
 
+ID3D12GraphicsCommandList3 * CommandList::getCmdList()
+{
+	return this->mp_cmdList;
+}
+
 ID3D12GraphicsCommandList3 * CommandList::operator()()
 {
 	return mp_cmdList;
