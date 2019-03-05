@@ -1,14 +1,7 @@
-struct BufTypeFloat4
-{
-	float x, y, z, w;
-};
-
-RWStructuredBuffer<BufTypeFloat4> BufferOut : register(u2);
+RWTexture2D<float4> textureOut : register(u2);
 
 [numthreads(1, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	BufferOut[DTid.x].x += 5.0f;
-	BufferOut[DTid.x].y = 4.0f;
-	BufferOut[DTid.x].z = 8.0f;
+	textureOut[uint2(DTid.x, DTid.y)].rgba = float4(0.0f, 0.0f, 1.0f, 1.0f);
 }

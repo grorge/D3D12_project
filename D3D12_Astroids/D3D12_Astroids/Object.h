@@ -7,7 +7,8 @@
 struct Vertex
 {
 	float x, y, z; // Position
-	float r, g, b; // Color
+	float u, v;	   // Texcoord
+//	float r, g, b; // Color
 };
 
 class Object

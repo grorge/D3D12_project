@@ -1,5 +1,4 @@
-SamplerState samplerState : register (s0);
-Texture2D texture2d : register (t2);
+Texture2D texture2d : register (t0);
 
 struct VSOut
 {
@@ -9,6 +8,8 @@ struct VSOut
 
 float4 main( VSOut input ) : SV_TARGET0
 {
-	return texture2d.Sample(samplerState, input.uv);
-	//return input.color;
+	int3 dank = int3(input.pos.x, input.pos.y, 0);
+	//int3 dank = int3(399, 224, 0);
+	return texture2d.Load(dank);
+	//return float4(1.0f, 0.0f, 0.0f, 1.0f);
 }
