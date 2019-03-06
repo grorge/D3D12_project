@@ -14,6 +14,7 @@ public:
 		const D3D12_COMMAND_LIST_TYPE type);
 
 	void Destroy();
+	ID3D12GraphicsCommandList3* getCmdList();
 
 	ID3D12GraphicsCommandList3* operator()();
 

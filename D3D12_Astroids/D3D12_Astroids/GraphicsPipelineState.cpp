@@ -58,7 +58,8 @@ void GraphicsPipelineState::Compile(
 		for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; i++)
 			desc.BlendState.RenderTarget[i] = defaultRTdesc;
 
-		pDevice->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&mp_pipelineState));
+		HRESULT hr = pDevice->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&mp_pipelineState));
+		int dank = 5;
 	}
 }
 

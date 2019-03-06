@@ -17,8 +17,8 @@
 
 #include <vector>
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
+#define SCREEN_WIDTH 960
+#define SCREEN_HEIGHT 540
 
 #define NUM_SWAP_BUFFERS 2
 #define NUM_CONST_BUFFERS 2
@@ -89,11 +89,19 @@ private:
 	GraphicsPipelineState m_graphicsState;
 	ComputePipelineState m_computeState;
 	ComputePipelineState m_computeStateKeyboard;
+	ComputePipelineState m_computeStateDraw;
 
 	DescriptorHeap m_constantBufferHeap;
 	UploadResource m_constantBufferResource[NUM_CONST_BUFFERS];
 
 	DescriptorHeap m_uavHeap;
+	DefaultResource m_uavResourceFloat4;
+	DefaultResource m_uavResourceIntArray;
+
+	ID3D12Resource* m_texture;
+	DescriptorHeap m_srvHeap;
+
+
 	UAVBuffer m_uavArray[NUM_UAV_BUFFERS];
 
 	UAVBuffer m_uavFloat4, m_uavIntArray;
