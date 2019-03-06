@@ -107,9 +107,9 @@ void Renderer::startGame()
 	TranslatonBuffer transData[256];
 	for (int i = 0; i < 256; i++)
 	{
-		transData[i].trans[0] = 2.0f;
-		transData[i].trans[1] = 1.0f;
-		transData[i].trans[2] = 1.0f;
+		transData[i].trans[0] = 200.0f;
+		transData[i].trans[1] = 100.0f;
+		transData[i].trans[2] = 100.0f;
 	}
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
@@ -766,7 +766,7 @@ void Renderer::CreateUnorderedAccessResources()
 	desc2.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
 	desc2.Buffer.FirstElement = 0;
-	desc2.Buffer.NumElements = 1;
+	desc2.Buffer.NumElements = 256;
 	desc2.Buffer.StructureByteStride = sizeof(float) * 3;
 	desc2.Buffer.CounterOffsetInBytes = 0;
 	desc2.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
@@ -780,7 +780,7 @@ void Renderer::CreateUnorderedAccessResources()
 	const UINT byteWidthArray[] = {
 		32,
 		1024,
-		((sizeof(TranslatonBuffer)) + 255) & ~255,
+		4096,
 	};
 
 	const bool cpuWriteArray[] = {
@@ -808,6 +808,7 @@ void Renderer::CreateUnorderedAccessResources()
 			NULL,
 			&descArray[i],
 			cpuAddress);
+
 		cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
 
