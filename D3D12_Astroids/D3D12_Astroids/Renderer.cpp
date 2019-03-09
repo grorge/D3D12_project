@@ -145,39 +145,39 @@ void Renderer::ready()
 		D3D12_RESOURCE_STATE_PRESENT,		//state before
 		D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
 	);
-	//Set constant buffer descriptor heap
-	ID3D12DescriptorHeap* descriptorHeaps[] = { m_constantBufferHeap.mp_descriptorHeap };
-	m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+	////Set constant buffer descriptor heap
+	//ID3D12DescriptorHeap* descriptorHeaps[] = { m_constantBufferHeap.mp_descriptorHeap };
+	//m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 
-	//Set root signature
-	m_graphicsCmdList()->SetGraphicsRootSignature(rootSignature);
+	////Set root signature
+	//m_graphicsCmdList()->SetGraphicsRootSignature(rootSignature);
 
-	//Set root descriptor table to index 0 in previously set root signature
-	m_graphicsCmdList()->SetGraphicsRootDescriptorTable(
-		0, 
-		m_constantBufferHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	////Set root descriptor table to index 0 in previously set root signature
+	//m_graphicsCmdList()->SetGraphicsRootDescriptorTable(
+	//	0, 
+	//	m_constantBufferHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-	//Set necessary states.
-	m_graphicsCmdList()->RSSetViewports(1, &viewport);
-	m_graphicsCmdList()->RSSetScissorRects(1, &scissorRect);
+	////Set necessary states.
+	//m_graphicsCmdList()->RSSetViewports(1, &viewport);
+	//m_graphicsCmdList()->RSSetScissorRects(1, &scissorRect);
 
 	//Record commands.
 	//Get the handle for the current render target used as back buffer.
 	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
 	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuAccessDSV = this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	/*D3D12_CPU_DESCRIPTOR_HANDLE cpuAccessDSV = this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	m_graphicsCmdList()->OMSetRenderTargets(1, &cdh, true, &cpuAccessDSV);
-
+*/
 	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	m_graphicsCmdList()->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
-	m_graphicsCmdList()->ClearDepthStencilView(
+	/*m_graphicsCmdList()->ClearDepthStencilView(
 		this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), 
 		D3D12_CLEAR_FLAG_DEPTH, 
 		1.0f, 
 		0, 
 		0, 
-		nullptr);
+		nullptr);*/
 }
 
 void Renderer::update()
@@ -248,20 +248,32 @@ void Renderer::render()
 	
 	this->fillLists();
 
+
+	/*ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeap.mp_descriptorHeap };
+	m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+*/
+	//// Set Root Argument, Index 1
+	//m_graphicsCmdList()->SetGraphicsRootDescriptorTable(
+	//	2,
+	//	m_srvHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	//
 	//Indicate that the back buffer will now be used to present.
 	SetResourceTransitionBarrier(m_graphicsCmdList(),
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
-		D3D12_RESOURCE_STATE_PRESENT		//state after
+		D3D12_RESOURCE_STATE_COPY_DEST		//state after
 	);
 
-	ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeap.mp_descriptorHeap };
-	m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+	m_graphicsCmdList()->CopyResource(
+		renderTargets[backBufferIndex],
+		m_texture);
 
-	// Set Root Argument, Index 1
-	m_graphicsCmdList()->SetGraphicsRootDescriptorTable(
-		2,
-		m_srvHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	//Indicate that the back buffer will now be used to present.
+	SetResourceTransitionBarrier(m_graphicsCmdList(),
+		renderTargets[backBufferIndex],
+		D3D12_RESOURCE_STATE_COPY_DEST,	//state before
+		D3D12_RESOURCE_STATE_PRESENT		//state after
+	);
 
 	//Close the list to prepare it for execution.
 	m_graphicsCmdList()->Close();
@@ -361,7 +373,7 @@ void Renderer::fillLists()
 	objectList[0]->addToCommList(m_graphicsCmdList());
 
 	//m_graphicsCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-	m_graphicsCmdList()->DrawInstanced(4, instances, 0, 0);
+	//m_graphicsCmdList()->DrawInstanced(4, instances, 0, 0);
 	//m_graphicsCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COMMON));
 }
 
@@ -507,8 +519,8 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 
 	//Create swap chain.
 	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
-	scDesc.Width = 0;
-	scDesc.Height = 0;
+	scDesc.Width = SCREEN_WIDTH;
+	scDesc.Height = SCREEN_HEIGHT;
 	scDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	scDesc.Stereo = FALSE;
 	scDesc.SampleDesc.Count = 1;
@@ -822,7 +834,7 @@ void Renderer::CreateUnorderedAccessResources()
 	D3D12_RESOURCE_DESC texDesc = {};
 	texDesc.MipLevels = 1;
 	texDesc.Alignment = 0;
-	texDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; //DXGI_FORMAT_R8G8B8A8_UNORM;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; //DXGI_FORMAT_R8G8B8A8_UNORM;
 	texDesc.Width = SCREEN_WIDTH;
 	texDesc.Height = SCREEN_HEIGHT;
 	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
