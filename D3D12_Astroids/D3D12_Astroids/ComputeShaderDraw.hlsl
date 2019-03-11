@@ -1,17 +1,17 @@
-RWTexture2D<float4> textureOut : register(u3);
+RWTexture2D<float4> textureOut : register(u4);
 
 struct BufTypeTrans
 {
 	float x, y, z;
 };
 
-RWStructuredBuffer<BufTypeTrans> BufferTrans : register(u2);
+RWStructuredBuffer<BufTypeTrans> BufferPosition : register(u2);
 
 [numthreads(1, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	float2 pos0 = float2(BufferTrans[0].x, BufferTrans[0].y);
-	float2 pos1 = float2(BufferTrans[1].x, BufferTrans[1].y);
+	float2 pos0 = float2(BufferPosition[0].x, BufferPosition[0].y);
+	float2 pos1 = float2(BufferPosition[1].x, BufferPosition[1].y);
 	
 	float2 texPos = float2(DTid.x, DTid.y);
 	float length = 10.0f;

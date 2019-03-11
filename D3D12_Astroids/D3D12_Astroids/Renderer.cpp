@@ -104,19 +104,24 @@ void Renderer::startGame()
 	this->UploadData(triangleVertices, byteWidth, &this->objectList[0]->m_resource);
 
 	ConstantBuffer data = { 1.0f, 2.0f, 3.0f, 4.0f }; 
-	TranslatonBuffer transData[256];
+	TranslatonBuffer positionData[256];
+	TranslatonBuffer directionData[256];
 	for (int i = 0; i < 256; i++)
 	{
-		transData[i].trans[0] = 200.0f;
-		transData[i].trans[1] = 100.0f;
-		transData[i].trans[2] = 100.0f;
+		positionData[i].trans[0] = 200.0f;
+		positionData[i].trans[1] = 100.0f;
+		positionData[i].trans[2] = 100.0f;
+		directionData[i].trans[0] = 1.0f;
+		directionData[i].trans[1] = 0.0f;
+		directionData[i].trans[2] = 0.0f;
 	}
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
 	m_uavArray[0].UploadData(&data, m_copyCmdList());
 	m_uavIntArray.UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
-	m_uavArray[2].UploadData(&transData, m_copyCmdList());
+	m_uavArray[2].UploadData(&positionData, m_copyCmdList());
+	m_uavArray[3].UploadData(&directionData, m_copyCmdList());
 
 
 	//Close the list to prepare it for execution.
@@ -312,6 +317,9 @@ void Renderer::RunComputeShader()
 	// Shader proccesing keyboard
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
 	m_computeCmdList()->Dispatch(32, 1, 1);
+
+	m_computeCmdList()->SetPipelineState(m_computeStateTranslation.mp_pipelineState);
+	m_computeCmdList()->Dispatch(256, 1, 1);
 
 	// Shader looking for collision
 	m_computeCmdList()->SetPipelineState(m_computeStateCollision.mp_pipelineState);
@@ -629,6 +637,9 @@ void Renderer::CreateShadersAndPiplelineState()
 
 	m_computeStateCollision.SetComputeShader("ComputeShaderCollision.hlsl");
 	m_computeStateCollision.Compile(device4, rootSignature);
+
+	m_computeStateTranslation.SetComputeShader("ComputeShaderTranslation.hlsl");
+	m_computeStateTranslation.Compile(device4, rootSignature);
 }
 
 void Renderer::CreateRootSignature()
@@ -780,6 +791,7 @@ void Renderer::CreateUnorderedAccessResources()
 		cpuAddress);
 */
 
+	// Position Buffer
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc2 = {};
 	desc2.Format = DXGI_FORMAT_UNKNOWN;
 	desc2.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -790,15 +802,28 @@ void Renderer::CreateUnorderedAccessResources()
 	desc2.Buffer.CounterOffsetInBytes = 0;
 	desc2.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
+	// Direction buffer
+	D3D12_UNORDERED_ACCESS_VIEW_DESC desc3 = {};
+	desc3.Format = DXGI_FORMAT_UNKNOWN;
+	desc3.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		
+	desc3.Buffer.FirstElement = 0;
+	desc3.Buffer.NumElements = 256;
+	desc3.Buffer.StructureByteStride = sizeof(float) * 3;
+	desc3.Buffer.CounterOffsetInBytes = 0;
+	desc3.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
 	const D3D12_UNORDERED_ACCESS_VIEW_DESC descArray[] = {
 		desc0,
 		desc1,
 		desc2,
+		desc3,
 	};
 
 	const UINT byteWidthArray[] = {
 		32,
 		1024,
+		4096,
 		4096,
 	};
 
@@ -806,10 +831,12 @@ void Renderer::CreateUnorderedAccessResources()
 		true,
 		true,
 		true,
+		true,
 	};
 
 	const bool cpuReadArray[] = {
 		true,
+		false,
 		false,
 		false,
 	};

@@ -22,7 +22,7 @@
 
 #define NUM_SWAP_BUFFERS 2
 #define NUM_CONST_BUFFERS 2
-#define NUM_UAV_BUFFERS 4
+#define NUM_UAV_BUFFERS 5
 
 #define CONST_COLOR_INDEX 0
 #define CONST_TRANSLATION_INDEX 1
@@ -91,6 +91,7 @@ private:
 	ComputePipelineState m_computeStateKeyboard;
 	ComputePipelineState m_computeStateCollision;
 	ComputePipelineState m_computeStateDraw;
+	ComputePipelineState m_computeStateTranslation;
 
 	DescriptorHeap m_constantBufferHeap;
 	UploadResource m_constantBufferResource[NUM_CONST_BUFFERS];

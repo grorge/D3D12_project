@@ -19,6 +19,9 @@
     <FxCompile Include="ComputeShaderDraw.hlsl">
       <Filter>Resources Files</Filter>
     </FxCompile>
+    <FxCompile Include="ComputeShaderTranslation.hlsl">
+      <Filter>Resources Files</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CommandAllocator.cpp">
