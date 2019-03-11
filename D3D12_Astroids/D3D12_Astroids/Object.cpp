@@ -9,9 +9,12 @@ Object::Object(
 	this->CreateTriangleData(device4);
 
 	//this->translation = { 0.5f, 1.0f, 0.0001f, 1.0f };
-	this->translation = { ((float)test / 3.0f) * 2.0f - 0.5f, ((float)test / 3.0f) * 2.0f - 1.0f, ((float)test / 3.0f) * 2.0f - 1.0f, 1.0f };
-	
-	this->color = { ((float)test / 3.0f) * 2.0f - 0.5f, ((float)test / 3.0f) * 2.0f - 1.0f, 0.0001f };
+	//this->translation = { ((float)test / 3.0f) * 2.0f - 0.5f, ((float)test / 3.0f) * 2.0f - 1.0f, ((float)test / 3.0f) * 2.0f - 1.0f, 1.0f };
+	//this->color = { ((float)test / 3.0f) * 2.0f - 0.5f, ((float)test / 3.0f) * 2.0f - 1.0f, 0.0001f };
+
+	this->translation = { 1.0f, 1.0f, 1.0f };
+	this->color = { 1.0f, 0.0f, 0.0f };
+
 }
 
 Object::~Object()
@@ -28,6 +31,7 @@ void Object::addToCommList(ID3D12GraphicsCommandList3 * commandList4)
 
 void Object::update()
 {
+	/*
 	//Update constant buffer
 	for (int i = 0; i < 3; i++)
 	{
@@ -42,6 +46,7 @@ void Object::update()
 		this->translation.values[1] = -1.0f;
 	else					/////1
 		this->translation.values[1] += 0.001f;
+		*/
 }
 
 void Object::CreateTriangleData(
@@ -49,17 +54,21 @@ void Object::CreateTriangleData(
 {
 	Vertex triangleVertices[4] =
 	{
-		-0.5f, -0.5f, 0.0f,	//v0 pos
-		1.0f, 0.0f, 0.0f,	//v0 color
+		-1.0f, -1.0f, 0.5f,	//v0 pos
+		0.0f, 1.0f,			//v0 uv
+		//1.0f, 0.0f, 0.0f,	//v0 color
 
-		-0.5f, 0.5f, 1.0f,	//v1
-		0.0f, 1.0f, 0.0f,	//v1 color
+		-1.0f, 1.0f, 0.5f,	//v1
+		0.0f, 0.0f,			//v1 uv
+		//0.0f, 1.0f, 0.0f,	//v1 color
 
-		0.5f, -0.5f, 0.0f, //v2
-		0.0f, 0.0f, 1.0f,	//v2 color
+		1.0f, -1.0f, 0.5f,  //v2
+		1.0f, 1.0f,			//v2 uv
+		//0.0f, 0.0f, 1.0f,	//v2 color
 
-		0.5f, 0.5f, -1.0f, //v3
-		0.0f, 0.0f, 1.0f	//v3 color
+		1.0f, 1.0f, 0.5f,  //v3
+		1.0f, 0.0f,			//v3 uv
+		//1.0f, 1.0f, 0.0f	//v3 color
 	};
 
 	const UINT byteWidth = sizeof(triangleVertices);

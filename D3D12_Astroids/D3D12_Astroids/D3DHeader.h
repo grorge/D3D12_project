@@ -4,6 +4,7 @@
 #include <dxgi1_6.h> //Only used for initialization of the device and swap chain.
 #include <d3dcompiler.h>
 #include <string>
+#include "d3dx12.h"
 
 
 #pragma comment (lib, "d3d12.lib")

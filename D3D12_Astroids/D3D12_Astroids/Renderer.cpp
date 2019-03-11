@@ -1,9 +1,5 @@
 #include "Renderer.h"
 
-
-#include "UploadResource.h"
-#include "ReadbackResource.h"
-
 Renderer::Renderer()
 {
 }
@@ -38,6 +34,8 @@ Renderer::~Renderer()
 
 	SafeRelease(&dsDescriptorHeap);
 	SafeRelease(&depthStencilBuffer);
+
+	SafeRelease(&m_texture);
 
 	delete this->keyboard;
 }
@@ -78,17 +76,21 @@ void Renderer::startGame()
 {
 	Vertex triangleVertices[4] =
 	{
-		-0.5f, -0.5f, 0.0f,	//v0 pos
-		1.0f, 0.0f, 0.0f,	//v0 color
+		-1.0f, -1.0f, -1.0f,//v0 pos
+		0.0f, 1.0f,			//v0 uv
+		//1.0f, 0.0f, 0.0f,	//v0 color
 
-		-0.5f, 0.5f, 1.0f,	//v1
-		0.0f, 1.0f, 0.0f,	//v1 color
+		-1.0f, 1.0f, -1.0f,	//v1
+		0.0f, 0.0f,			//v1 uv
+		//0.0f, 1.0f, 0.0f,	//v1 color
 
-		0.5f, -0.5f, 0.0f, //v2
-		0.0f, 0.0f, 1.0f,	//v2 color
+		1.0f, -1.0f, -1.0f,  //v2
+		1.0f, 1.0f,			//v2 uv
+		//0.0f, 0.0f, 1.0f,	//v2 color
 
-		0.5f, 0.5f, -1.0f, //v3
-		0.0f, 0.0f, 1.0f	//v3 color
+		1.0f, 1.0f, -1.0f,  //v3
+		1.0f, 0.0f,			//v3 uv
+		//1.0f, 1.0f, 0.0f	//v3 color
 	};
 
 	this->object = new Object(this->device4, 1);
@@ -105,9 +107,9 @@ void Renderer::startGame()
 	TranslatonBuffer transData[256];
 	for (int i = 0; i < 256; i++)
 	{
-		transData[i].trans[0] = 2.0f;
-		transData[i].trans[1] = 1.0f;
-		transData[i].trans[2] = 3.0f;
+		transData[i].trans[0] = 200.0f;
+		transData[i].trans[1] = 100.0f;
+		transData[i].trans[2] = 100.0f;
 	}
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
@@ -143,39 +145,39 @@ void Renderer::ready()
 		D3D12_RESOURCE_STATE_PRESENT,		//state before
 		D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
 	);
-	//Set constant buffer descriptor heap
-	ID3D12DescriptorHeap* descriptorHeaps[] = { m_constantBufferHeap.mp_descriptorHeap };
-	m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+	////Set constant buffer descriptor heap
+	//ID3D12DescriptorHeap* descriptorHeaps[] = { m_constantBufferHeap.mp_descriptorHeap };
+	//m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 
-	//Set root signature
-	m_graphicsCmdList()->SetGraphicsRootSignature(rootSignature);
+	////Set root signature
+	//m_graphicsCmdList()->SetGraphicsRootSignature(rootSignature);
 
-	//Set root descriptor table to index 0 in previously set root signature
-	m_graphicsCmdList()->SetGraphicsRootDescriptorTable(
-		0, 
-		m_constantBufferHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	////Set root descriptor table to index 0 in previously set root signature
+	//m_graphicsCmdList()->SetGraphicsRootDescriptorTable(
+	//	0, 
+	//	m_constantBufferHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-	//Set necessary states.
-	m_graphicsCmdList()->RSSetViewports(1, &viewport);
-	m_graphicsCmdList()->RSSetScissorRects(1, &scissorRect);
+	////Set necessary states.
+	//m_graphicsCmdList()->RSSetViewports(1, &viewport);
+	//m_graphicsCmdList()->RSSetScissorRects(1, &scissorRect);
 
 	//Record commands.
 	//Get the handle for the current render target used as back buffer.
 	D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
 	cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuAccessDSV = this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	/*D3D12_CPU_DESCRIPTOR_HANDLE cpuAccessDSV = this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	m_graphicsCmdList()->OMSetRenderTargets(1, &cdh, true, &cpuAccessDSV);
-
+*/
 	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	m_graphicsCmdList()->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
-	m_graphicsCmdList()->ClearDepthStencilView(
+	/*m_graphicsCmdList()->ClearDepthStencilView(
 		this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), 
 		D3D12_CLEAR_FLAG_DEPTH, 
 		1.0f, 
 		0, 
 		0, 
-		nullptr);
+		nullptr);*/
 }
 
 void Renderer::update()
@@ -246,10 +248,30 @@ void Renderer::render()
 	
 	this->fillLists();
 
+
+	/*ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeap.mp_descriptorHeap };
+	m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+*/
+	//// Set Root Argument, Index 1
+	//m_graphicsCmdList()->SetGraphicsRootDescriptorTable(
+	//	2,
+	//	m_srvHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	//
 	//Indicate that the back buffer will now be used to present.
 	SetResourceTransitionBarrier(m_graphicsCmdList(),
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
+		D3D12_RESOURCE_STATE_COPY_DEST		//state after
+	);
+
+	m_graphicsCmdList()->CopyResource(
+		renderTargets[backBufferIndex],
+		m_texture);
+
+	//Indicate that the back buffer will now be used to present.
+	SetResourceTransitionBarrier(m_graphicsCmdList(),
+		renderTargets[backBufferIndex],
+		D3D12_RESOURCE_STATE_COPY_DEST,	//state before
 		D3D12_RESOURCE_STATE_PRESENT		//state after
 	);
 
@@ -286,11 +308,6 @@ void Renderer::RunComputeShader()
 	m_computeCmdList()->SetComputeRootDescriptorTable(
 		1,
 		m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	
-	//m_computeCmdList()->SetComputeRootUnorderedAccessView(
-	//	2, // Index 2
-	//	this->m_uavArray[1]()->GetGPUVirtualAddress());// m_uavResourceIntArray.mp_resource->GetGPUVirtualAddress());
-
 
 	// Shader proccesing keyboard
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
@@ -303,6 +320,11 @@ void Renderer::RunComputeShader()
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
 	m_computeCmdList()->Dispatch(3, 1, 1);
 
+	//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+	m_computeCmdList()->SetPipelineState(m_computeStateDraw.mp_pipelineState);
+	m_computeCmdList()->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
+	//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON));
+
 	m_computeCmdList()->Close();
 
 	//Execute the command list.
@@ -310,7 +332,7 @@ void Renderer::RunComputeShader()
 	m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
 	WaitForGpu(m_computeCmdQueue());
-
+/*
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
@@ -328,13 +350,14 @@ void Renderer::RunComputeShader()
 
 	float* data = (float*)m_uavArray[0].GetData();
 
-	printToDebug("Data: \n");
-	printToDebug((float)data[0]);
-	printToDebug(", ");
-	printToDebug((float)data[1]);
-	printToDebug(", ");
-	printToDebug((float)data[2]);
-	printToDebug("\n");
+	printToDebug("\n__Data__\nx: ");
+	printToDebug((int)data[0]);
+	printToDebug("\ny: ");
+	printToDebug((int)data[1]);
+	printToDebug("\nz: ");
+	printToDebug((int)data[2]);
+	printToDebug("\nw: ");
+	printToDebug((int)data[3]);
 
 	this->updateTranslation();
 
@@ -342,17 +365,20 @@ void Renderer::RunComputeShader()
 	//this->objectList[0]->translation.values[1] = (float)data[1];
 
 	Sleep(1000);
+*/
 }
 
 void Renderer::fillLists()
 {
-	UINT instances = (UINT)objectList.size();
+	UINT instances = 1; //(UINT)objectList.size();
 	m_graphicsCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 
 	objectList[0]->addToCommList(m_graphicsCmdList());
 
-	m_graphicsCmdList()->DrawInstanced(4, instances, 0, 0);
+	//m_graphicsCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	//m_graphicsCmdList()->DrawInstanced(4, instances, 0, 0);
+	//m_graphicsCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COMMON));
 }
 
 void Renderer::SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource,
@@ -497,8 +523,8 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 
 	//Create swap chain.
 	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
-	scDesc.Width = 0;
-	scDesc.Height = 0;
+	scDesc.Width = SCREEN_WIDTH;
+	scDesc.Height = SCREEN_HEIGHT;
 	scDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	scDesc.Stereo = FALSE;
 	scDesc.SampleDesc.Count = 1;
@@ -511,7 +537,7 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 	scDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
 	IDXGISwapChain1* swapChain1 = nullptr;
-	if (SUCCEEDED(factory->CreateSwapChainForHwnd(
+	if (SUCCEEDED(hr = factory->CreateSwapChainForHwnd(
 		m_graphicsCmdQueue(),
 		wndHandle,
 		&scDesc,
@@ -578,7 +604,8 @@ void Renderer::CreateShadersAndPiplelineState()
 	////// Input Layout //////
 	D3D12_INPUT_ELEMENT_DESC inputElementDesc[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR"	, 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "TEXCOORD"	, 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		//{ "COLOR"	, 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc;
@@ -597,6 +624,9 @@ void Renderer::CreateShadersAndPiplelineState()
 	m_computeStateKeyboard.SetComputeShader("ComputeShaderKeyboard.hlsl");
 	m_computeStateKeyboard.Compile(device4, rootSignature);
 
+	m_computeStateDraw.SetComputeShader("ComputeShaderDraw.hlsl");
+	m_computeStateDraw.Compile(device4, rootSignature);
+
 	m_computeStateCollision.SetComputeShader("ComputeShaderCollision.hlsl");
 	m_computeStateCollision.Compile(device4, rootSignature);
 }
@@ -604,68 +634,59 @@ void Renderer::CreateShadersAndPiplelineState()
 void Renderer::CreateRootSignature()
 {
 	//define descriptor range(s)
-	D3D12_DESCRIPTOR_RANGE  dtRanges[2];
-	dtRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	dtRanges[0].NumDescriptors = 1; //only one CB in this example
-	dtRanges[0].BaseShaderRegister = 0; //register b0
-	dtRanges[0].RegisterSpace = 0; //register(b0,space0);
-	dtRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	D3D12_DESCRIPTOR_RANGE  dtRanges;
+	dtRanges.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	dtRanges.NumDescriptors = NUM_CONST_BUFFERS; //only one CB in this example
+	dtRanges.BaseShaderRegister = 0; //register b0
+	dtRanges.RegisterSpace = 0; //register(b0,space0);
+	dtRanges.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	
-	dtRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	dtRanges[1].NumDescriptors = 1; //only one CB in this example
-	dtRanges[1].BaseShaderRegister = 1; //register b0
-	dtRanges[1].RegisterSpace = 0; //register(b0,space0);
-	dtRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
 	//create a descriptor table
 	D3D12_ROOT_DESCRIPTOR_TABLE dt;
-	dt.NumDescriptorRanges = ARRAYSIZE(dtRanges);
-	dt.pDescriptorRanges = dtRanges;
+	dt.NumDescriptorRanges = 1;
+	dt.pDescriptorRanges = &dtRanges;
+
+
+	//define descriptor range(s)
+	D3D12_DESCRIPTOR_RANGE  uavRanges;
+	uavRanges.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	uavRanges.NumDescriptors = NUM_UAV_BUFFERS; //only one CB in this example
+	uavRanges.BaseShaderRegister = 0; //register b0
+	uavRanges.RegisterSpace = 0; //register(b0,space0);
+	uavRanges.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	//create a descriptor table
+	D3D12_ROOT_DESCRIPTOR_TABLE uavDt;
+	uavDt.NumDescriptorRanges = 1;
+	uavDt.pDescriptorRanges = &uavRanges;
+
+	//define descriptor range(s)
+	D3D12_DESCRIPTOR_RANGE  srvRanges;
+	srvRanges.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	srvRanges.NumDescriptors = 1; //only one CB in this example
+	srvRanges.BaseShaderRegister = 0; //register t0
+	srvRanges.RegisterSpace = 0; //register(t0,space0);
+	srvRanges.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	//create a descriptor table
+	D3D12_ROOT_DESCRIPTOR_TABLE srvDt;
+	srvDt.NumDescriptorRanges = 1;
+	srvDt.pDescriptorRanges = &srvRanges;
+
 
 	//create root parameter
-	D3D12_ROOT_PARAMETER  rootParam[2];
+	D3D12_ROOT_PARAMETER  rootParam[3];
 	rootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[0].DescriptorTable = dt;
 	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 
-
-	//define descriptor range(s)
-	D3D12_DESCRIPTOR_RANGE  uavRanges[NUM_UAV_BUFFERS];
-
-	for (int i = 0; i < NUM_UAV_BUFFERS; i++)
-	{
-		uavRanges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		uavRanges[i].NumDescriptors = 1; //only one CB in this example
-		uavRanges[i].BaseShaderRegister = i; //register b0
-		uavRanges[i].RegisterSpace = 0; //register(b0,space0);
-		uavRanges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-	}
-
-	//create a descriptor table
-	D3D12_ROOT_DESCRIPTOR_TABLE uavDt;
-	uavDt.NumDescriptorRanges = ARRAYSIZE(uavRanges);
-	uavDt.pDescriptorRanges = uavRanges;
-
-	//create a descriptor table
-	//D3D12_ROOT_DESCRIPTOR uavDesc;
-	//uavDesc.RegisterSpace = 0;
-	//uavDesc.ShaderRegister = 0;
-
-
-	////create root parameter
 	rootParam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[1].DescriptorTable = uavDt;
 	rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	////create a descriptor table
-	//D3D12_ROOT_DESCRIPTOR uavDesc1;
-	//uavDesc1.RegisterSpace = 0;
-	//uavDesc1.ShaderRegister = 1;
-
-	////create root parameter
-	//rootParam[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
-	//rootParam[2].Descriptor = uavDesc1;
-	//rootParam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParam[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam[2].DescriptorTable = srvDt;
+	rootParam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -730,50 +751,23 @@ void Renderer::CreateUnorderedAccessResources()
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuAddress =
 		m_uavHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
-	//UINT uavSize = (sizeof(ConstantBuffer) + 255) & ~255;	// 256-byte aligned CB.
-
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc0 = {};
-	desc0.Format = DXGI_FORMAT_UNKNOWN;
+	desc0.Format = DXGI_FORMAT_R32_FLOAT;
 	desc0.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
 	desc0.Buffer.FirstElement = 0;
-	desc0.Buffer.NumElements = 12;
-	desc0.Buffer.StructureByteStride = sizeof(float);
+	desc0.Buffer.NumElements = 4;
+	desc0.Buffer.StructureByteStride = 0;
 	desc0.Buffer.CounterOffsetInBytes = 0;
 	desc0.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
-
-
-	/*m_uavResourceFloat4.Initialize(
-		device4,
-		uavSize,
-		D3D12_HEAP_FLAG_NONE,
-		D3D12_RESOURCE_STATE_COMMON,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-	m_uavFloat4.Initialize(device4, uavSize, true, true);
-
-	device4->CreateUnorderedAccessView(
-		m_uavFloat4(),
-		NULL,
-		&desc0,
-		cpuAddress);*/
-
-	//cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-
-	//----------
-
-	//const UINT uavSize = 1024; // 1024-byte aligned CB.
-
-	// The Keyboard UAV
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc1 = {};
-	desc1.Format = DXGI_FORMAT_UNKNOWN;
+	desc1.Format = DXGI_FORMAT_R32_UINT;
 	desc1.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	   
 	desc1.Buffer.FirstElement = 0;
-	desc1.Buffer.NumElements = 32;
-	desc1.Buffer.StructureByteStride = sizeof(int);
+	desc1.Buffer.NumElements = 256;
+	desc1.Buffer.StructureByteStride = 0;
 	desc1.Buffer.CounterOffsetInBytes = 0;
 	desc1.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
@@ -791,7 +785,7 @@ void Renderer::CreateUnorderedAccessResources()
 	desc2.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
 	desc2.Buffer.FirstElement = 0;
-	desc2.Buffer.NumElements = 1;
+	desc2.Buffer.NumElements = 256;
 	desc2.Buffer.StructureByteStride = sizeof(float) * 3;
 	desc2.Buffer.CounterOffsetInBytes = 0;
 	desc2.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
@@ -803,9 +797,9 @@ void Renderer::CreateUnorderedAccessResources()
 	};
 
 	const UINT byteWidthArray[] = {
-		(sizeof(ConstantBuffer) + 255) & ~255,
+		32,
 		1024,
-		((sizeof(TranslatonBuffer)) + 255) & ~255,
+		4096,
 	};
 
 	const bool cpuWriteArray[] = {
@@ -820,7 +814,7 @@ void Renderer::CreateUnorderedAccessResources()
 		false,
 	};
 
-	for (int i = 0; i < NUM_UAV_BUFFERS; i++)
+	for (int i = 0; i < NUM_UAV_BUFFERS - 1; i++)
 	{
 		m_uavArray[i].Initialize(
 			device4,
@@ -836,6 +830,51 @@ void Renderer::CreateUnorderedAccessResources()
 
 		cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
+
+	// Describe and create a shader resource view (SRV) heap for the texture.
+	m_srvHeap.Initialize(
+		device4,
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		1);
+
+	//TEXTURE
+	D3D12_RESOURCE_DESC texDesc = {};
+	texDesc.MipLevels = 1;
+	texDesc.Alignment = 0;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; //DXGI_FORMAT_R8G8B8A8_UNORM;
+	texDesc.Width = SCREEN_WIDTH;
+	texDesc.Height = SCREEN_HEIGHT;
+	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	texDesc.DepthOrArraySize = 1;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+	device4->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&texDesc,
+		D3D12_RESOURCE_STATE_COMMON,
+		nullptr,
+		IID_PPV_ARGS(&m_texture)
+		);
+
+	// Describe and create a SRV for the texture.
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = texDesc.Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	device4->CreateShaderResourceView(m_texture, &srvDesc, m_srvHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC description = {};
+	description.Format = texDesc.Format;
+	description.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	//description.Texture2D.MipSlice = 1;
+	//description.Texture2D.PlaneSlice = 1;
+
+	device4->CreateUnorderedAccessView(m_texture, nullptr, &description, cpuAddress);
 }
 
 void Renderer::CreateDepthStencil()
