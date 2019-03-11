@@ -1,5 +1,5 @@
 
-#define NROFOBJECTS 32
+#define NROFOBJECTS 64
 #define RADIUS 10.0f
 
 struct BufTypeTrans
