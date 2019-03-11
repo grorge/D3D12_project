@@ -5,6 +5,9 @@
 #include <d3dcompiler.h>
 #include <string>
 #include "d3dx12.h"
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
 
 
 #pragma comment (lib, "d3d12.lib")

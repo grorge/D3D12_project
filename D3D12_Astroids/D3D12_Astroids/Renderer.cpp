@@ -74,6 +74,8 @@ void Renderer::init(HWND hwnd)
 
 void Renderer::startGame()
 {
+	srand(time(NULL));
+
 	Vertex triangleVertices[4] =
 	{
 		-1.0f, -1.0f, -1.0f,//v0 pos
@@ -106,18 +108,25 @@ void Renderer::startGame()
 	ConstantBuffer data = { 1.0f, 2.0f, 3.0f, 4.0f }; 
 	TranslatonBuffer positionData[256];
 	TranslatonBuffer directionData[256];
+
 	for (int i = 0; i < 256; i++)
 	{
-		positionData[i].trans[0] = 200.0f;
-		positionData[i].trans[1] = 100.0f;
+		//float temp = (((float)rand() / (float)RAND_MAX) - 0.5f );
+		positionData[i].trans[0] = SCREEN_WIDTH * ((float)rand() / (float)RAND_MAX);
+		positionData[i].trans[1] = SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX);
 		positionData[i].trans[2] = 100.0f;
-		directionData[i].trans[0] = 1.0f;
-		directionData[i].trans[1] = 0.0f;
-		directionData[i].trans[2] = 0.0f;
+		directionData[i].trans[0] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
+		directionData[i].trans[1] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
+		directionData[i].trans[2] = 1.0f;
 	}
-	positionData[0].trans[0] = 500.0f;
-	positionData[0].trans[1] = 500.0f;
+	positionData[0].trans[0] = 300.0f;
+	positionData[0].trans[1] = 300.0f;
 	positionData[0].trans[2] = 1.0f;
+
+	positionData[2].trans[0] = 400.0f;
+	positionData[2].trans[1] = 400.0f;
+	positionData[2].trans[2] = 1.0f;
+
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
@@ -321,6 +330,7 @@ void Renderer::RunComputeShader()
 	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
 	m_computeCmdList()->Dispatch(32, 1, 1);
 
+	// Moves the objects
 	m_computeCmdList()->SetPipelineState(m_computeStateTranslation.mp_pipelineState);
 	m_computeCmdList()->Dispatch(256, 1, 1);
 
@@ -328,6 +338,7 @@ void Renderer::RunComputeShader()
 	m_computeCmdList()->SetPipelineState(m_computeStateCollision.mp_pipelineState);
 	m_computeCmdList()->Dispatch(32, 1, 1);
 
+	// Testing shader
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
 	m_computeCmdList()->Dispatch(3, 1, 1);
 
