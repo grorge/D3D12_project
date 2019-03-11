@@ -18,8 +18,8 @@
 #include <vector>
 
 
-#define SCREEN_WIDTH 960
-#define SCREEN_HEIGHT 540
+#define SCREEN_WIDTH 1600
+#define SCREEN_HEIGHT 900
 
 #define NUM_SWAP_BUFFERS 2
 #define NUM_CONST_BUFFERS 2
