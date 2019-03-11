@@ -1,3 +1,4 @@
+
 #define NROFOBJECTS 64
 #define RADIUS 10.0f
 
@@ -10,17 +11,15 @@ struct BufTypeTrans
 
 RWStructuredBuffer<BufTypeTrans> BufferPosition : register(u2);
 
-#define BLOCK_WIDTH 256
-
-[numthreads(BLOCK_WIDTH, 1, 1)]
+[numthreads(1, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	float index = DTid.x + DTid.y * BLOCK_WIDTH;
-	float length = RADIUS;
+	float2 index	= float2(DTid.x, DTid.y);
+	float length		= RADIUS;
 
 	float2 pos = float2(
-		BufferPosition[index].x,
-		BufferPosition[index].y);
+		BufferPosition[index.x].x,
+		BufferPosition[index.y].y);
 
 	float4 color = 0.0f;
 
@@ -34,8 +33,11 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	{
 		for (unsigned int x = xMin; x < xMax; x++)
 		{
-			textureOut[uint2(x, y)].rgba =
+			textureOut[uint2(x, y)].rgba = 
 				distance(float2(x, y), pos) < length ? 1.0f : 0.0f;
 		}
 	}
+
+
+	//textureOut[uint2(DTid.x, DTid.y)].rgba = color;
 }

@@ -22,6 +22,9 @@
     <FxCompile Include="ComputeShaderTranslation.hlsl">
       <Filter>Resources Files</Filter>
     </FxCompile>
+    <FxCompile Include="ComputeShaderClear.hlsl">
+      <Filter>Resources Files</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CommandAllocator.cpp">

@@ -91,6 +91,7 @@ private:
 	ComputePipelineState m_computeState;
 	ComputePipelineState m_computeStateKeyboard;
 	ComputePipelineState m_computeStateCollision;
+	ComputePipelineState m_computeStateClear;
 	ComputePipelineState m_computeStateDraw;
 	ComputePipelineState m_computeStateTranslation;
 
