@@ -115,6 +115,9 @@ void Renderer::startGame()
 		directionData[i].trans[1] = 0.0f;
 		directionData[i].trans[2] = 0.0f;
 	}
+	positionData[0].trans[0] = 500.0f;
+	positionData[0].trans[1] = 500.0f;
+	positionData[0].trans[2] = 1.0f;
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 

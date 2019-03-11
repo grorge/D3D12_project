@@ -1,6 +1,6 @@
 
 #define NROFOBJECTS 32
-#define RADIUS 0.5f
+#define RADIUS 20.0f
 
 struct BufTypeTrans
 {
@@ -22,7 +22,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
 			if (dist <= RADIUS)
 			{
-				BufferPosition[DTid.x].z = -1.0f;
+				BufferPosition[DTid.x].x = -1.0f;
 			}
 		}
 	}
