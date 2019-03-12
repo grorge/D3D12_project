@@ -1,4 +1,4 @@
-#define NROFOBJECTS 64
+#define NROFOBJECTS 256
 #define RADIUS 10.0f
 
 RWTexture2D<float4> textureOut : register(u4);

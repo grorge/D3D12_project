@@ -339,7 +339,7 @@ void Renderer::RunComputeShader()
 
 	// Shader looking for collision
 	m_computeCmdList()->SetPipelineState(m_computeStateCollision.mp_pipelineState);
-	m_computeCmdList()->Dispatch(64, 1, 1);
+	m_computeCmdList()->Dispatch(256, 1, 1);
 
 	// Testing shader
 	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
