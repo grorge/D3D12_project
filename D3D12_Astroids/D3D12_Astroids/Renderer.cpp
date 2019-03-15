@@ -117,7 +117,7 @@ void Renderer::startGame()
 		positionData[i].trans[2] = 1.0f;
 		directionData[i].trans[0] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
 		directionData[i].trans[1] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
-		directionData[i].trans[2] = 1.0f;
+		directionData[i].trans[2] = 3.0f;
 	}
 
 	// Sets a default position for the player
@@ -244,6 +244,10 @@ void Renderer::update()
 
 		m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
 
+		// Dowload the position data from the GPU, this is to see the players state with the z-value
+		// We dowload alot but we only need 1 float, this is t ostress the system
+		m_uavArray[2].DownloadData(m_copyCmdList());
+
 		//Close the list to prepare it for execution.
 		m_copyCmdList()->Close();
 
@@ -346,8 +350,14 @@ void Renderer::RunComputeShader()
 	m_computeCmdList()->Dispatch(3, 1, 1);
 
 	//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-	m_computeCmdList()->SetPipelineState(m_computeStateDraw.mp_pipelineState);
-	m_computeCmdList()->Dispatch(1, 1, 1);
+
+	float* data = (float*)m_uavArray[2].GetData();
+	if (data[2] != -1.0f) // index 2 is the z-value of the player
+	{
+		m_computeCmdList()->SetPipelineState(m_computeStateDraw.mp_pipelineState);
+		m_computeCmdList()->Dispatch(1, 1, 1);
+	}
+	
 	//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON));
 
 	m_computeCmdList()->Close();
@@ -857,7 +867,7 @@ void Renderer::CreateUnorderedAccessResources()
 	const bool cpuReadArray[] = {
 		true,
 		false,
-		false,
+		true,
 		false,
 	};
 
