@@ -556,7 +556,7 @@ void Renderer::RunComputeShader()
 	//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
 
 	float* data = (float*)m_uavArray[2].GetData();
-	if (data[2] != -1.0f) // index 2 is the z-value of the player
+	if (true/*data[2] != -1.0f*/) // index 2 is the z-value of the player
 	{
 		m_computeCmdList()->SetPipelineState(m_computeStateDraw.mp_pipelineState);
 		m_computeCmdList()->Dispatch(1, 1, 1);
