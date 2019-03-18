@@ -32,6 +32,7 @@
 #define RUN_COMPUTESHADERS 1
 #define RUN_THREADS 1
 #define RUN_ONE_THREAD 1
+#define RUN_SEQUENTIAL 1
 
 
 
@@ -83,6 +84,8 @@ private:
 	HRESULT hr;
 
 	UINT backBufferIndex = 0;
+
+	std::thread* t_sequential;
 
 	std::thread* t_frame[NUM_SWAP_BUFFERS];
 	std::thread* t_copyData;

@@ -11,10 +11,18 @@ Renderer::~Renderer()
 	this->WaitForGpu(m_computeCmdQueue());
 
 
-	delete t_frame[0];
-	delete t_frame[1];
-	delete t_update;
-	delete t_copyData;
+	if (RUN_SEQUENTIAL)
+	{
+		delete t_sequential;
+	}
+	else
+	{
+		delete t_frame[0];
+		delete t_frame[1];
+		delete t_update;
+		delete t_copyData;
+	}
+	
 
 	CloseHandle(eventHandle);
 	SafeRelease(&device4);		
@@ -51,17 +59,25 @@ Renderer::~Renderer()
 void Renderer::joinThreads()
 {
 	this->running = false;
-	int nrOfThreads = NUM_SWAP_BUFFERS;
-	if (RUN_ONE_THREAD)
+	if (RUN_SEQUENTIAL)
 	{
-		nrOfThreads = 1;
+		this->t_sequential->join();
 	}
-	for (int i = 0; i < nrOfThreads; i++)
+	else
 	{
-		this->t_frame[i]->join();
+		int nrOfThreads = NUM_SWAP_BUFFERS;
+		if (RUN_ONE_THREAD)
+		{
+			nrOfThreads = 1;
+		}
+		for (int i = 0; i < nrOfThreads; i++)
+		{
+			this->t_frame[i]->join();
+		}
+		this->t_copyData->join();
+		this->t_update->join();
 	}
-	this->t_copyData->join();
-	this->t_update->join();
+	
 }
 
 void Renderer::init(HWND hwnd)
@@ -172,18 +188,27 @@ void Renderer::startGame()
 void Renderer::initThreads()
 {
 	this->running = true;
-	int nrOfThreads = NUM_SWAP_BUFFERS;
-	if (RUN_ONE_THREAD)
+
+	if (RUN_SEQUENTIAL) // Launch one thread that runs everything sequential
 	{
-		nrOfThreads = 1;
+		this->t_sequential = new std::thread([&](Renderer* rnd) { rnd->tm_update(); }, this);
 	}
-	for (int i = 0; i < nrOfThreads; i++)
+	else // Launch parallel threads
 	{
-		//this->frameThreads[i] = new std::thread(&Renderer::render, i, this );
-		this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrame(i); }, this);
+		int nrOfThreads = NUM_SWAP_BUFFERS;
+		if (RUN_ONE_THREAD)
+		{
+			nrOfThreads = 1;
+		}
+		for (int i = 0; i < nrOfThreads; i++)
+		{
+			//this->frameThreads[i] = new std::thread(&Renderer::render, i, this );
+			this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrame(i); }, this);
+		}
+		this->t_copyData = new std::thread([&](Renderer* rnd) { rnd->tm_copy(); }, this);
+		this->t_update = new std::thread([&](Renderer* rnd) { rnd->tm_runCS(); }, this);
 	}
-	this->t_copyData = new std::thread([&](Renderer* rnd) { rnd->tm_copy(); }, this);
-	this->t_update = new std::thread([&](Renderer* rnd) { rnd->tm_update(); }, this);
+	
 }
 
 void Renderer::ready()
@@ -410,6 +435,8 @@ void Renderer::tm_runFrame(unsigned int iD)
 
 		//this->tm_runCS();
 
+		if (RUN_SEQUENTIAL == 1)
+			break;
 	}
 }
 
@@ -438,6 +465,9 @@ void Renderer::tm_copy()
 		m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute0), listsToExecute0);
 
 		WaitForGpu(m_copyCmdQueue());
+
+		if (RUN_SEQUENTIAL == 1)
+			break;
 	}
 }
 
@@ -445,70 +475,80 @@ void Renderer::tm_update()
 {
 	while (this->running)
 	{
+		this->tm_copy();
+
+		this->tm_runFrame(0);
+
 		this->tm_runCS();
 	}
 }
 
 void Renderer::tm_runCS()
 {
-	WaitForGpu(m_computeCmdQueue());
-
-	//Command list allocators can only be reset when the associated command lists have
-	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	m_computeCmdAllocator()->Reset();
-	m_computeCmdList()->Reset(m_computeCmdAllocator(), nullptr);
-
-	//Set root signature
-	m_computeCmdList()->SetComputeRootSignature(rootSignature);
-
-
-	ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
-	m_computeCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
-
-
-	// Set Root Argument, Index 1
-	m_computeCmdList()->SetComputeRootDescriptorTable(
-		1,
-		m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-	// Clear Texture
-	m_computeCmdList()->SetPipelineState(m_computeStateClear.mp_pipelineState);
-	m_computeCmdList()->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
-
-	// Shader proccesing keyboard
-	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
-	m_computeCmdList()->Dispatch(32, 1, 1);
-
-	// Moves the objects
-	m_computeCmdList()->SetPipelineState(m_computeStateTranslation.mp_pipelineState);
-	m_computeCmdList()->Dispatch(256, 1, 1);
-
-	// Shader looking for collision
-	m_computeCmdList()->SetPipelineState(m_computeStateCollision.mp_pipelineState);
-	m_computeCmdList()->Dispatch(256, 1, 1);
-
-	// Testing shader
-	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
-	m_computeCmdList()->Dispatch(3, 1, 1);
-
-	//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-
-	float* data = (float*)m_uavArray[2].GetData();
-	if (true/*data[2] != -1.0f*/) // index 2 is the z-value of the player
+	while (this->running)
 	{
-		m_computeCmdList()->SetPipelineState(m_computeStateDraw.mp_pipelineState);
-		m_computeCmdList()->Dispatch(1, 1, 1);
+		WaitForGpu(m_computeCmdQueue());
+
+		//Command list allocators can only be reset when the associated command lists have
+		//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
+		m_computeCmdAllocator()->Reset();
+		m_computeCmdList()->Reset(m_computeCmdAllocator(), nullptr);
+
+		//Set root signature
+		m_computeCmdList()->SetComputeRootSignature(rootSignature);
+
+
+		ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
+		m_computeCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+
+
+		// Set Root Argument, Index 1
+		m_computeCmdList()->SetComputeRootDescriptorTable(
+			1,
+			m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+		// Clear Texture
+		m_computeCmdList()->SetPipelineState(m_computeStateClear.mp_pipelineState);
+		m_computeCmdList()->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
+
+		// Shader proccesing keyboard
+		m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
+		m_computeCmdList()->Dispatch(32, 1, 1);
+
+		// Moves the objects
+		m_computeCmdList()->SetPipelineState(m_computeStateTranslation.mp_pipelineState);
+		m_computeCmdList()->Dispatch(256, 1, 1);
+
+		// Shader looking for collision
+		m_computeCmdList()->SetPipelineState(m_computeStateCollision.mp_pipelineState);
+		m_computeCmdList()->Dispatch(256, 1, 1);
+
+		// Testing shader
+		m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
+		m_computeCmdList()->Dispatch(3, 1, 1);
+
+		//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+
+		float* data = (float*)m_uavArray[2].GetData();
+		if (true/*data[2] != -1.0f*/) // index 2 is the z-value of the player
+		{
+			m_computeCmdList()->SetPipelineState(m_computeStateDraw.mp_pipelineState);
+			m_computeCmdList()->Dispatch(1, 1, 1);
+		}
+
+		//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON));
+
+		m_computeCmdList()->Close();
+
+		//Execute the command list.
+		ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
+		m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+		WaitForGpu(m_computeCmdQueue());
+
+		if (RUN_SEQUENTIAL == 1)
+			break;
 	}
-
-	//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON));
-
-	m_computeCmdList()->Close();
-
-	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
-	m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
-
-	WaitForGpu(m_computeCmdQueue());
 }
 
 void Renderer::RunComputeShader()
