@@ -58,6 +58,8 @@ void Renderer::joinThreads()
 	{
 		this->t_frame[i]->join();
 	}
+	this->t_copyData->join();
+	this->t_update->join();
 }
 
 void Renderer::init(HWND hwnd)
@@ -178,6 +180,8 @@ void Renderer::initThreads()
 		//this->frameThreads[i] = new std::thread(&Renderer::render, i, this );
 		this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrame(i); }, this);
 	}
+	this->t_copyData = new std::thread([&](Renderer* rnd) { rnd->tm_copy(); }, this);
+	this->t_update = new std::thread([&](Renderer* rnd) { rnd->tm_update(); }, this);
 }
 
 void Renderer::ready()
@@ -343,10 +347,11 @@ void Renderer::tm_runFrame(unsigned int iD)
 			while (iD != this->swapChain4->GetCurrentBackBufferIndex()) {}
 		}
 		this->currThreadWorking = iD;
+		this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 
 		//printToDebug((int)iD);
 
-		this->tm_update();
+		//this->tm_update();
 
 		WaitForGpu(m_graphicsCmdQueue()); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.
@@ -401,38 +406,45 @@ void Renderer::tm_runFrame(unsigned int iD)
 		swapChain4->Present1(0, 0, &pp);
 
 
-		this->tm_runCS();
+		//this->tm_runCS();
 
+	}
+}
+
+void Renderer::tm_copy()
+{
+	while (this->running)
+	{
+		// Update keyboard
+		//if (keyboard->readKeyboard())
+		keyboard->readKeyboard();
+
+		m_copyCmdAllocator()->Reset();
+		m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
+
+		m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
+
+		// Dowload the position data from the GPU, this is to see the players state with the z-value
+		// We dowload alot but we only need 1 float, this is t ostress the system
+		m_uavArray[2].DownloadData(m_copyCmdList());
+
+		//Close the list to prepare it for execution.
+		m_copyCmdList()->Close();
+
+		//Execute the command list.
+		ID3D12CommandList* listsToExecute0[] = { m_copyCmdList() };
+		m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute0), listsToExecute0);
+
+		WaitForGpu(m_copyCmdQueue());
 	}
 }
 
 void Renderer::tm_update()
 {
-
-	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
-
-
-	// Update keyboard
-		//if (keyboard->readKeyboard())
-	keyboard->readKeyboard();
-
-	m_copyCmdAllocator()->Reset();
-	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
-
-	m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
-
-	// Dowload the position data from the GPU, this is to see the players state with the z-value
-	// We dowload alot but we only need 1 float, this is t ostress the system
-	m_uavArray[2].DownloadData(m_copyCmdList());
-
-	//Close the list to prepare it for execution.
-	m_copyCmdList()->Close();
-
-	//Execute the command list.
-	ID3D12CommandList* listsToExecute0[] = { m_copyCmdList() };
-	m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute0), listsToExecute0);
-
-	WaitForGpu(m_copyCmdQueue());
+	while (this->running)
+	{
+		this->tm_runCS();
+	}
 }
 
 void Renderer::tm_runCS()
@@ -708,6 +720,7 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 	m_computeCmdAllocator.Initialize(
 		device4,
 		D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	m_computeCmdAllocator()->SetName(L"compute Allocator");
 
 	m_computeCmdList.Initialize(
 		device4,
@@ -722,6 +735,7 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 	m_copyCmdAllocator.Initialize(
 		device4,
 		D3D12_COMMAND_LIST_TYPE_COPY);
+	m_copyCmdAllocator()->SetName(L"copy Allocator");
 
 	m_copyCmdList.Initialize(
 		device4,
@@ -735,18 +749,22 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 		D3D12_COMMAND_QUEUE_PRIORITY_NORMAL);
 
 
+
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
 
 		m_graphicsCmdAllocator[i].Initialize(
 			device4,
 			D3D12_COMMAND_LIST_TYPE_DIRECT);
+		//m_graphicsCmdAllocator[i]()->SetName(L"graphics Allocator");
 
 		m_graphicsCmdList[i].Initialize(
 			device4,
 			m_graphicsCmdAllocator[i](),
 			D3D12_COMMAND_LIST_TYPE_DIRECT);
 	}
+	m_graphicsCmdAllocator[0]()->SetName(L"graphics0 Allocator");
+	m_graphicsCmdAllocator[1]()->SetName(L"graphics1 Allocator");
 
 	IDXGIFactory5*	factory = nullptr;
 	CreateDXGIFactory(IID_PPV_ARGS(&factory));
