@@ -23,12 +23,14 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	BufTypeTrans tempDir = BufferDirection[index];
 	float3 dir = float3(tempDir.x, tempDir.y, tempDir.z);
 
-	dir.x *= (thisObj.x < 0.0f || thisObj.x > SCREEN_WIDTH)			?  -1.0f : 1.0f;
-	dir.y *= (thisObj.y < 0.0f || thisObj.y > SCREEN_HEIGHT)		?  -1.0f : 1.0f;
-	//dir.x = (thisObj.x > SCREEN_WIDTH)  ? -1.0f : dir.x;
+	//dir.x *= (thisObj.x < 0.0f || thisObj.x > SCREEN_WIDTH)			?  -1.0f : 1.0f;
+	//dir.y *= (thisObj.y < 0.0f || thisObj.y > SCREEN_HEIGHT)		?  -1.0f : 1.0f;
 
-	//dir.y = (thisObj.y < 0.0f)			?  1.0f : dir.y;
-	//dir.y = (thisObj.y > SCREEN_HEIGHT) ? -1.0f : dir.y;
+	dir.x = (thisObj.x < 0.0f)			?  1.0f : dir.x;
+	dir.x = (thisObj.x > SCREEN_WIDTH)  ? -1.0f : dir.x;
+
+	dir.y = (thisObj.y < 0.0f)			?  1.0f : dir.y;
+	dir.y = (thisObj.y > SCREEN_HEIGHT) ? -1.0f : dir.y;
 
 	float3 thatObj = { BufferPosition[0].x, BufferPosition[0].y, 1.0f };
 
