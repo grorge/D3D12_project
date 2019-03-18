@@ -31,6 +31,7 @@
 
 #define RUN_COMPUTESHADERS 1
 #define RUN_THREADS 1
+#define RUN_ONE_THREAD 1
 
 
 
@@ -90,8 +91,8 @@ private:
 	unsigned int currThreadWorking = 0;
 
 	CommandQueue m_graphicsCmdQueue;
-	CommandAllocator m_graphicsCmdAllocator;
-	CommandList m_graphicsCmdList;
+	CommandAllocator m_graphicsCmdAllocator[NUM_SWAP_BUFFERS];
+	CommandList m_graphicsCmdList[NUM_SWAP_BUFFERS];
 
 	CommandQueue m_computeCmdQueue;
 	CommandAllocator m_computeCmdAllocator;

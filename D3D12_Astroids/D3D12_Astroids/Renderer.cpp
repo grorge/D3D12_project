@@ -12,6 +12,7 @@ Renderer::~Renderer()
 
 
 	delete t_frame[0];
+	delete t_frame[1];
 
 	CloseHandle(eventHandle);
 	SafeRelease(&device4);		
@@ -48,7 +49,12 @@ Renderer::~Renderer()
 void Renderer::joinThreads()
 {
 	this->running = false;
-	for (int i = 0; i < 1/*NUM_SWAP_BUFFERS*/; i++)
+	int nrOfThreads = NUM_SWAP_BUFFERS;
+	if (RUN_ONE_THREAD)
+	{
+		nrOfThreads = 1;
+	}
+	for (int i = 0; i < nrOfThreads; i++)
 	{
 		this->t_frame[i]->join();
 	}
@@ -162,7 +168,12 @@ void Renderer::startGame()
 void Renderer::initThreads()
 {
 	this->running = true;
-	for (unsigned int i = 0; i < 1/*NUM_SWAP_BUFFERS*/; i++)
+	int nrOfThreads = NUM_SWAP_BUFFERS;
+	if (RUN_ONE_THREAD)
+	{
+		nrOfThreads = 1;
+	}
+	for (int i = 0; i < nrOfThreads; i++)
 	{
 		//this->frameThreads[i] = new std::thread(&Renderer::render, i, this );
 		this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrame(i); }, this);
@@ -176,11 +187,11 @@ void Renderer::ready()
 
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	m_graphicsCmdAllocator()->Reset();
-	m_graphicsCmdList()->Reset(m_graphicsCmdAllocator(), m_graphicsState.mp_pipelineState);
+	m_graphicsCmdAllocator[0]()->Reset();
+	m_graphicsCmdList[0]()->Reset(m_graphicsCmdAllocator[0](), m_graphicsState.mp_pipelineState);
 
 	//Indicate that the back buffer will be used as render target.
-	SetResourceTransitionBarrier(m_graphicsCmdList(),
+	SetResourceTransitionBarrier(m_graphicsCmdList[0](),
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_PRESENT,		//state before
 		D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
@@ -210,7 +221,7 @@ void Renderer::ready()
 	m_graphicsCmdList()->OMSetRenderTargets(1, &cdh, true, &cpuAccessDSV);
 */
 	float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-	m_graphicsCmdList()->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
+	m_graphicsCmdList[0]()->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
 	/*m_graphicsCmdList()->ClearDepthStencilView(
 		this->dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), 
 		D3D12_CLEAR_FLAG_DEPTH, 
@@ -293,28 +304,28 @@ void Renderer::render()
 	this->fillLists();
 
 
-	SetResourceTransitionBarrier(m_graphicsCmdList(),
+	SetResourceTransitionBarrier(m_graphicsCmdList[0](),
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
 		D3D12_RESOURCE_STATE_COPY_DEST		//state after
 	);
 
-	m_graphicsCmdList()->CopyResource(
+	m_graphicsCmdList[0]()->CopyResource(
 		renderTargets[backBufferIndex],
 		m_texture);
 
 	//Indicate that the back buffer will now be used to present.
-	SetResourceTransitionBarrier(m_graphicsCmdList(),
+	SetResourceTransitionBarrier(m_graphicsCmdList[0](),
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_COPY_DEST,	//state before
 		D3D12_RESOURCE_STATE_PRESENT		//state after
 	);
 
 	//Close the list to prepare it for execution.
-	m_graphicsCmdList()->Close();
+	m_graphicsCmdList[0]()->Close();
 
 	//Execute the command list.
-	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
+	ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList[0]() };
 	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
 	//Present the frame.
@@ -327,38 +338,62 @@ void Renderer::tm_runFrame(unsigned int iD)
 	while (this->running)
 	{
 		// Holds the thtead untill it is ready to render
-		//while (iD != this->swapChain4->GetCurrentBackBufferIndex()) {}
+		if (RUN_ONE_THREAD != 1)
+		{
+			while (iD != this->swapChain4->GetCurrentBackBufferIndex()) {}
+		}
 		this->currThreadWorking = iD;
+
+		//printToDebug((int)iD);
 
 		this->tm_update();
 
-		this->ready();
-		
-		m_graphicsCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		objectList[0]->addToCommList(m_graphicsCmdList());
+		WaitForGpu(m_graphicsCmdQueue()); //Wait for GPU to finish.
+				  //NOT BEST PRACTICE, only used as such for simplicity.
 
-		SetResourceTransitionBarrier(m_graphicsCmdList(),
+		m_graphicsCmdAllocator[iD]()->Reset();
+		m_graphicsCmdList[iD]()->Reset(m_graphicsCmdAllocator[iD](), m_graphicsState.mp_pipelineState);
+
+		//Indicate that the back buffer will be used as render target.
+		SetResourceTransitionBarrier(m_graphicsCmdList[iD](),
+			renderTargets[backBufferIndex],
+			D3D12_RESOURCE_STATE_PRESENT,		//state before
+			D3D12_RESOURCE_STATE_RENDER_TARGET	//state after
+		);
+
+		//Record commands.
+		//Get the handle for the current render target used as back buffer.
+		D3D12_CPU_DESCRIPTOR_HANDLE cdh = renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
+		cdh.ptr += renderTargetDescriptorSize * backBufferIndex;
+
+		float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+		m_graphicsCmdList[iD]()->ClearRenderTargetView(cdh, clearColor, 0, nullptr);
+		
+		m_graphicsCmdList[iD]()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		objectList[0]->addToCommList(m_graphicsCmdList[iD]());
+
+		SetResourceTransitionBarrier(m_graphicsCmdList[iD](),
 			renderTargets[backBufferIndex],
 			D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
 			D3D12_RESOURCE_STATE_COPY_DEST		//state after
 		);
 
-		m_graphicsCmdList()->CopyResource(
+		m_graphicsCmdList[iD]()->CopyResource(
 			renderTargets[backBufferIndex],
 			m_texture);
 
 		//Indicate that the back buffer will now be used to present.
-		SetResourceTransitionBarrier(m_graphicsCmdList(),
+		SetResourceTransitionBarrier(m_graphicsCmdList[iD](),
 			renderTargets[backBufferIndex],
 			D3D12_RESOURCE_STATE_COPY_DEST,	//state before
 			D3D12_RESOURCE_STATE_PRESENT		//state after
 		);
 
 		//Close the list to prepare it for execution.
-		m_graphicsCmdList()->Close();
+		m_graphicsCmdList[iD]()->Close();
 
 		//Execute the command list.
-		ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
+		ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList[iD]() };
 		m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
 		//Present the frame.
@@ -561,10 +596,10 @@ void Renderer::RunComputeShader()
 void Renderer::fillLists()
 {
 	UINT instances = 1; //(UINT)objectList.size();
-	m_graphicsCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	m_graphicsCmdList[0]()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 
-	objectList[0]->addToCommList(m_graphicsCmdList());
+	objectList[0]->addToCommList(m_graphicsCmdList[0]());
 
 	//m_graphicsCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	//m_graphicsCmdList()->DrawInstanced(4, instances, 0, 0);
@@ -699,14 +734,19 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		D3D12_COMMAND_QUEUE_PRIORITY_NORMAL);
 
-	m_graphicsCmdAllocator.Initialize(
-		device4,
-		D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	m_graphicsCmdList.Initialize(
-		device4,
-		m_graphicsCmdAllocator(),
-		D3D12_COMMAND_LIST_TYPE_DIRECT);
+	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+	{
+
+		m_graphicsCmdAllocator[i].Initialize(
+			device4,
+			D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+		m_graphicsCmdList[i].Initialize(
+			device4,
+			m_graphicsCmdAllocator[i](),
+			D3D12_COMMAND_LIST_TYPE_DIRECT);
+	}
 
 	IDXGIFactory5*	factory = nullptr;
 	CreateDXGIFactory(IID_PPV_ARGS(&factory));
