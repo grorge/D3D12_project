@@ -16,6 +16,7 @@
 #include "UAVBuffer.h"
 
 #include <vector>
+#include <thread>
 
 
 #define SCREEN_WIDTH 1600
@@ -29,6 +30,7 @@
 #define CONST_TRANSLATION_INDEX 1
 
 #define RUN_COMPUTESHADERS 1
+#define RUN_THREADS 1
 
 
 
@@ -37,13 +39,19 @@ class Renderer
 public:
 	Renderer();
 	~Renderer();
+	void joinThreads();
 
 	void init(HWND hwnd);
 	void startGame();
+	void initThreads();
 
 	void ready();
 	void update();
 	void render();
+	void tm_runFrame(unsigned int iD);
+	void tm_copy();
+	void tm_update();
+	void tm_runCS();
 	void RunComputeShader();
 
 	ID3D12Device4*				device4 = nullptr;
@@ -74,6 +82,12 @@ private:
 	HRESULT hr;
 
 	UINT backBufferIndex = 0;
+
+	std::thread* t_frame[NUM_SWAP_BUFFERS];
+	std::thread* t_copyData;
+	std::thread* t_update;
+	bool running = false;
+	unsigned int currThreadWorking = 0;
 
 	CommandQueue m_graphicsCmdQueue;
 	CommandAllocator m_graphicsCmdAllocator;
@@ -137,4 +151,7 @@ private:
 
 	Object* object;
 	std::vector<Object*> objectList;
+
+
+
 };

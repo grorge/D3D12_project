@@ -22,10 +22,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	render->init(wndHandle);
 	render->startGame();
 
-
 	if(wndHandle)
 	{
 		ShowWindow(wndHandle, nCmdShow);
+		
+		if (RUN_THREADS)
+		{
+			render->initThreads();
+		}
+		
 		while(WM_QUIT != msg.message)
 		{
 			if(PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -33,16 +38,19 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
-			else
+			else if(RUN_THREADS != 1)
 			{
 				render->update();
 				render->render();
 				if (RUN_COMPUTESHADERS)
 				{
-					render->RunComputeShader();
+				render->RunComputeShader();
 				}
 			}
 		}
+
+		if (RUN_THREADS) { render->joinThreads(); }
+
 	}
 	
 	delete render;

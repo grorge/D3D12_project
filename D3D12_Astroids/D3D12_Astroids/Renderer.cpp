@@ -10,6 +10,9 @@ Renderer::~Renderer()
 	this->WaitForGpu(m_graphicsCmdQueue());
 	this->WaitForGpu(m_computeCmdQueue());
 
+
+	delete t_frame[0];
+
 	CloseHandle(eventHandle);
 	SafeRelease(&device4);		
 	SafeRelease(&swapChain4);
@@ -38,6 +41,17 @@ Renderer::~Renderer()
 	SafeRelease(&m_texture);
 
 	delete this->keyboard;
+
+
+}
+
+void Renderer::joinThreads()
+{
+	this->running = false;
+	for (int i = 0; i < 1/*NUM_SWAP_BUFFERS*/; i++)
+	{
+		this->t_frame[i]->join();
+	}
 }
 
 void Renderer::init(HWND hwnd)
@@ -145,6 +159,16 @@ void Renderer::startGame()
 	WaitForGpu(m_copyCmdQueue());
 }
 
+void Renderer::initThreads()
+{
+	this->running = true;
+	for (unsigned int i = 0; i < 1/*NUM_SWAP_BUFFERS*/; i++)
+	{
+		//this->frameThreads[i] = new std::thread(&Renderer::render, i, this );
+		this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrame(i); }, this);
+	}
+}
+
 void Renderer::ready()
 {
 	WaitForGpu(m_graphicsCmdQueue()); //Wait for GPU to finish.
@@ -245,7 +269,7 @@ void Renderer::update()
 		m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
 
 		// Dowload the position data from the GPU, this is to see the players state with the z-value
-		// We dowload alot but we only need 1 float, this is t ostress the system
+		// We dowload alot but we only need 1 float, this is to stress the system
 		m_uavArray[2].DownloadData(m_copyCmdList());
 
 		//Close the list to prepare it for execution.
@@ -269,15 +293,6 @@ void Renderer::render()
 	this->fillLists();
 
 
-	/*ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeap.mp_descriptorHeap };
-	m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
-*/
-	//// Set Root Argument, Index 1
-	//m_graphicsCmdList()->SetGraphicsRootDescriptorTable(
-	//	2,
-	//	m_srvHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	//
-	//Indicate that the back buffer will now be used to present.
 	SetResourceTransitionBarrier(m_graphicsCmdList(),
 		renderTargets[backBufferIndex],
 		D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
@@ -305,6 +320,146 @@ void Renderer::render()
 	//Present the frame.
 	DXGI_PRESENT_PARAMETERS pp = {};
 	swapChain4->Present1(0, 0, &pp);
+}
+
+void Renderer::tm_runFrame(unsigned int iD)
+{
+	while (this->running)
+	{
+		// Holds the thtead untill it is ready to render
+		//while (iD != this->swapChain4->GetCurrentBackBufferIndex()) {}
+		this->currThreadWorking = iD;
+
+		this->tm_update();
+
+		this->ready();
+		
+		m_graphicsCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		objectList[0]->addToCommList(m_graphicsCmdList());
+
+		SetResourceTransitionBarrier(m_graphicsCmdList(),
+			renderTargets[backBufferIndex],
+			D3D12_RESOURCE_STATE_RENDER_TARGET,	//state before
+			D3D12_RESOURCE_STATE_COPY_DEST		//state after
+		);
+
+		m_graphicsCmdList()->CopyResource(
+			renderTargets[backBufferIndex],
+			m_texture);
+
+		//Indicate that the back buffer will now be used to present.
+		SetResourceTransitionBarrier(m_graphicsCmdList(),
+			renderTargets[backBufferIndex],
+			D3D12_RESOURCE_STATE_COPY_DEST,	//state before
+			D3D12_RESOURCE_STATE_PRESENT		//state after
+		);
+
+		//Close the list to prepare it for execution.
+		m_graphicsCmdList()->Close();
+
+		//Execute the command list.
+		ID3D12CommandList* listsToExecute[] = { m_graphicsCmdList() };
+		m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+		//Present the frame.
+		DXGI_PRESENT_PARAMETERS pp = {};
+		swapChain4->Present1(0, 0, &pp);
+
+
+		this->tm_runCS();
+
+	}
+}
+
+void Renderer::tm_update()
+{
+
+	this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
+
+
+	// Update keyboard
+		//if (keyboard->readKeyboard())
+	keyboard->readKeyboard();
+
+	m_copyCmdAllocator()->Reset();
+	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
+
+	m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
+
+	// Dowload the position data from the GPU, this is to see the players state with the z-value
+	// We dowload alot but we only need 1 float, this is t ostress the system
+	m_uavArray[2].DownloadData(m_copyCmdList());
+
+	//Close the list to prepare it for execution.
+	m_copyCmdList()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute0[] = { m_copyCmdList() };
+	m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute0), listsToExecute0);
+
+	WaitForGpu(m_copyCmdQueue());
+}
+
+void Renderer::tm_runCS()
+{
+	WaitForGpu(m_computeCmdQueue());
+
+	//Command list allocators can only be reset when the associated command lists have
+	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
+	m_computeCmdAllocator()->Reset();
+	m_computeCmdList()->Reset(m_computeCmdAllocator(), nullptr);
+
+	//Set root signature
+	m_computeCmdList()->SetComputeRootSignature(rootSignature);
+
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
+	m_computeCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+
+
+	// Set Root Argument, Index 1
+	m_computeCmdList()->SetComputeRootDescriptorTable(
+		1,
+		m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+	// Clear Texture
+	m_computeCmdList()->SetPipelineState(m_computeStateClear.mp_pipelineState);
+	m_computeCmdList()->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
+
+	// Shader proccesing keyboard
+	m_computeCmdList()->SetPipelineState(m_computeStateKeyboard.mp_pipelineState);
+	m_computeCmdList()->Dispatch(32, 1, 1);
+
+	// Moves the objects
+	m_computeCmdList()->SetPipelineState(m_computeStateTranslation.mp_pipelineState);
+	m_computeCmdList()->Dispatch(256, 1, 1);
+
+	// Shader looking for collision
+	m_computeCmdList()->SetPipelineState(m_computeStateCollision.mp_pipelineState);
+	m_computeCmdList()->Dispatch(256, 1, 1);
+
+	// Testing shader
+	m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
+	m_computeCmdList()->Dispatch(3, 1, 1);
+
+	//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+
+	float* data = (float*)m_uavArray[2].GetData();
+	if (true/*data[2] != -1.0f*/) // index 2 is the z-value of the player
+	{
+		m_computeCmdList()->SetPipelineState(m_computeStateDraw.mp_pipelineState);
+		m_computeCmdList()->Dispatch(1, 1, 1);
+	}
+
+	//m_computeCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON));
+
+	m_computeCmdList()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
+	m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+	WaitForGpu(m_computeCmdQueue());
 }
 
 void Renderer::RunComputeShader()
