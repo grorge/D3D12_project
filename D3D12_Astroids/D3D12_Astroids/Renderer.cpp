@@ -13,6 +13,8 @@ Renderer::~Renderer()
 
 	delete t_frame[0];
 	delete t_frame[1];
+	delete t_update;
+	delete t_copyData;
 
 	CloseHandle(eventHandle);
 	SafeRelease(&device4);		
