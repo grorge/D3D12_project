@@ -22,7 +22,7 @@
 #define SCREEN_WIDTH 1600
 #define SCREEN_HEIGHT 900
 
-#define NUM_SWAP_BUFFERS 2
+#define NUM_SWAP_BUFFERS 4
 #define NUM_CONST_BUFFERS 2
 #define NUM_UAV_BUFFERS 5
 
@@ -91,7 +91,7 @@ private:
 
 	CommandQueue m_graphicsCmdQueue;
 	CommandAllocator m_graphicsCmdAllocator[NUM_SWAP_BUFFERS];
-	CommandList m_graphicsCmdList;
+	CommandList m_graphicsCmdList[NUM_SWAP_BUFFERS];
 
 	CommandQueue m_computeCmdQueue;
 	CommandAllocator m_computeCmdAllocator;
@@ -110,7 +110,7 @@ private:
 
 	DescriptorHeap m_uavHeap;
 
-	ID3D12Resource* m_texture;
+	ID3D12Resource* m_texture[NUM_SWAP_BUFFERS];
 	DescriptorHeap m_srvHeap;
 
 

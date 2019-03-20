@@ -46,7 +46,8 @@ Renderer::~Renderer()
 
 	SafeRelease(&rootSignature);
 
-	SafeRelease(&m_texture);
+	for (int i = 0;  i < NUM_SWAP_BUFFERS; i++)
+		SafeRelease(&m_texture[i]);
 
 	delete this->keyboard;
 
@@ -219,7 +220,7 @@ void Renderer::tm_runFrame(unsigned int iD)
 			while (iD != this->swapChain4->GetCurrentBackBufferIndex()) {}
 		}
 
-		//Sleep(15);
+		Sleep(2);
 
 		//printToDebug("ID: ", (int)iD);
 
@@ -227,63 +228,74 @@ void Renderer::tm_runFrame(unsigned int iD)
 		//WaitForGpu(m_graphicsCmdQueue()); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.
 
-		m_graphicsCmdList()->Reset(m_graphicsCmdAllocator[iD](), nullptr);
+		m_graphicsCmdList[iD]()->Reset(m_graphicsCmdAllocator[iD](), nullptr);
 		this->currThreadWorking = iD;
 		this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
 		
 		//Set root signature
-		m_graphicsCmdList()->SetComputeRootSignature(rootSignature);
+		m_graphicsCmdList[iD]()->SetComputeRootSignature(rootSignature);
 
-
+		
 		ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
-		m_graphicsCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+		m_graphicsCmdList[iD]()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(0, this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+		
 
 
-		// Set Root Argument, Index 1
-		m_graphicsCmdList()->SetComputeRootDescriptorTable(
-			1,
-			m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+		D3D12_GPU_DESCRIPTOR_HANDLE handle = this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+		D3D12_GPU_DESCRIPTOR_HANDLE handlePrev = this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
+		int prevIndex;
+		if (backBufferIndex != 0)
+			prevIndex = (backBufferIndex - 1);
+		else
+			prevIndex = NUM_SWAP_BUFFERS - 1;
+		handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS - 1 + backBufferIndex);
+		handlePrev.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) 
+			* (NUM_UAV_BUFFERS - 1 +  prevIndex);
+		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle);
+		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handlePrev);
 
 		// Clear Texture
-		m_graphicsCmdList()->SetPipelineState(m_computeStateClear.mp_pipelineState);
-		m_graphicsCmdList()->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
+		m_graphicsCmdList[iD]()->SetPipelineState(m_computeStateClear.mp_pipelineState);
+		m_graphicsCmdList[iD]()->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
+		
 
 		if (RUN_TIME_STAMPS)
 		{
-			this->frameTimer.start(this->m_graphicsCmdList(), 0);
+			this->frameTimer.start(this->m_graphicsCmdList[iD](), 0);
 
-			this->frameTimer.start(this->m_graphicsCmdList(), 1);
-			this->CopyTranslation(m_graphicsCmdList());
-			this->frameTimer.stop(this->m_graphicsCmdList(), 1);
+			this->frameTimer.start(this->m_graphicsCmdList[iD](), 1);
+			this->CopyTranslation(m_graphicsCmdList[iD]());
+			this->frameTimer.stop(this->m_graphicsCmdList[iD](), 1);
 
-			this->frameTimer.start(this->m_graphicsCmdList(), 2);
-			this->DrawShader(m_graphicsCmdList());
-			this->frameTimer.stop(this->m_graphicsCmdList(), 2);
+			this->frameTimer.start(this->m_graphicsCmdList[iD](), 2);
+			this->DrawShader(m_graphicsCmdList[iD]());
+			this->frameTimer.stop(this->m_graphicsCmdList[iD](), 2);
 
-			this->frameTimer.start(this->m_graphicsCmdList(), 3);
-			this->CopyTexture(m_graphicsCmdList());
-			this->frameTimer.stop(this->m_graphicsCmdList(), 3);
+			this->frameTimer.start(this->m_graphicsCmdList[iD](), 3);
+			this->CopyTexture(m_graphicsCmdList[iD]());
+			this->frameTimer.stop(this->m_graphicsCmdList[iD](), 3);
 
-			this->frameTimer.stop(this->m_graphicsCmdList(), 0);
+			this->frameTimer.stop(this->m_graphicsCmdList[iD](), 0);
 
-			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList(), 0);
-			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList(), 1);
-			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList(), 2);
-			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList(), 3);
+			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 0);
+			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 1);
+			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 2);
+			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 3);
 		}
 		else
 		{
-			this->CopyTranslation(m_graphicsCmdList());
-			this->DrawShader(m_graphicsCmdList());
-			this->CopyTexture(m_graphicsCmdList());
+			this->CopyTranslation(m_graphicsCmdList[iD]());
+			this->DrawShader(m_graphicsCmdList[iD]());
+			this->CopyTexture(m_graphicsCmdList[iD]());
 		}
 		
 
 
 
 
-		this->PresentFrame(m_graphicsCmdList());
+		this->PresentFrame(m_graphicsCmdList[iD]());
 
 		WaitForGpu(iD);
 		m_graphicsCmdAllocator[iD]()->Reset();
@@ -371,7 +383,7 @@ void Renderer::tm_runCS()
 
 		// Set Root Argument, Index 1
 		m_computeCmdList()->SetComputeRootDescriptorTable(
-			1,
+			0,
 			m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
 		this->KeyboardShader();
@@ -633,12 +645,13 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 			D3D12_COMMAND_LIST_TYPE_DIRECT);
 		//m_graphicsCmdAllocator[i]()->SetName(L"graphics Allocator");
 
+
+		m_graphicsCmdList[i].Initialize(
+			device4,
+			m_graphicsCmdAllocator[i](),
+			D3D12_COMMAND_LIST_TYPE_DIRECT);
 	}
 
-	m_graphicsCmdList.Initialize(
-		device4,
-		m_graphicsCmdAllocator[0](),
-		D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	m_graphicsCmdAllocator[0]()->SetName(L"graphics0 Allocator");
 	m_graphicsCmdAllocator[1]()->SetName(L"graphics1 Allocator");
@@ -730,20 +743,6 @@ void Renderer::CreateShadersAndPiplelineState()
 void Renderer::CreateRootSignature()
 {
 	//define descriptor range(s)
-	D3D12_DESCRIPTOR_RANGE  dtRanges;
-	dtRanges.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	dtRanges.NumDescriptors = NUM_CONST_BUFFERS; //only one CB in this example
-	dtRanges.BaseShaderRegister = 0; //register b0
-	dtRanges.RegisterSpace = 0; //register(b0,space0);
-	dtRanges.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-	
-	//create a descriptor table
-	D3D12_ROOT_DESCRIPTOR_TABLE dt;
-	dt.NumDescriptorRanges = 1;
-	dt.pDescriptorRanges = &dtRanges;
-
-
-	//define descriptor range(s)
 	D3D12_DESCRIPTOR_RANGE  uavRanges;
 	uavRanges.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 	uavRanges.NumDescriptors = NUM_UAV_BUFFERS; //only one CB in this example
@@ -757,32 +756,44 @@ void Renderer::CreateRootSignature()
 	uavDt.pDescriptorRanges = &uavRanges;
 
 	//define descriptor range(s)
-	D3D12_DESCRIPTOR_RANGE  srvRanges;
-	srvRanges.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	srvRanges.NumDescriptors = 1; //only one CB in this example
-	srvRanges.BaseShaderRegister = 0; //register t0
-	srvRanges.RegisterSpace = 0; //register(t0,space0);
-	srvRanges.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	D3D12_DESCRIPTOR_RANGE  uavRanges2;
+	uavRanges2.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	uavRanges2.NumDescriptors = 1; //only one CB in this example
+	uavRanges2.BaseShaderRegister = NUM_UAV_BUFFERS; //register b0
+	uavRanges2.RegisterSpace = 0; //register(b0,space0);
+	uavRanges2.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	//create a descriptor table
-	D3D12_ROOT_DESCRIPTOR_TABLE srvDt;
-	srvDt.NumDescriptorRanges = 1;
-	srvDt.pDescriptorRanges = &srvRanges;
+	D3D12_ROOT_DESCRIPTOR_TABLE uavDt2;
+	uavDt2.NumDescriptorRanges = 1;
+	uavDt2.pDescriptorRanges = &uavRanges2;
 
+	//define descriptor range(s)
+	D3D12_DESCRIPTOR_RANGE  uavRanges3;
+	uavRanges3.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	uavRanges3.NumDescriptors = 1; //only one CB in this example
+	uavRanges3.BaseShaderRegister = NUM_UAV_BUFFERS + 1; //register b0
+	uavRanges3.RegisterSpace = 0; //register(b0,space0);
+	uavRanges3.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	//create a descriptor table
+	D3D12_ROOT_DESCRIPTOR_TABLE uavDt3;
+	uavDt3.NumDescriptorRanges = 1;
+	uavDt3.pDescriptorRanges = &uavRanges3;
 
 	//create root parameter
 	D3D12_ROOT_PARAMETER  rootParam[3];
 	rootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParam[0].DescriptorTable = dt;
-	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParam[0].DescriptorTable = uavDt;
+	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	rootParam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParam[1].DescriptorTable = uavDt;
+	rootParam[1].DescriptorTable = uavDt2;
 	rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	rootParam[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParam[2].DescriptorTable = srvDt;
-	rootParam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParam[2].DescriptorTable = uavDt3;
+	rootParam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -811,7 +822,7 @@ void Renderer::CreateUnorderedAccessResources()
 	m_uavHeap.Initialize(
 		device4,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		NUM_UAV_BUFFERS);
+		NUM_UAV_BUFFERS + NUM_SWAP_BUFFERS);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuAddress =
 		m_uavHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -925,32 +936,36 @@ void Renderer::CreateUnorderedAccessResources()
 	texDesc.SampleDesc.Count = 1;
 	texDesc.SampleDesc.Quality = 0;
 	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-
-	device4->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&texDesc,
-		D3D12_RESOURCE_STATE_COMMON,
-		nullptr,
-		IID_PPV_ARGS(&m_texture)
+	
+	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+	{
+		device4->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&texDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(&m_texture[i])
 		);
 
-	// Describe and create a SRV for the texture.
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = texDesc.Format;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = 1;
-	device4->CreateShaderResourceView(m_texture, &srvDesc, m_srvHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart());
+		//// Describe and create a SRV for the texture.
+		//D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		//srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		//srvDesc.Format = texDesc.Format;
+		//srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		//srvDesc.Texture2D.MipLevels = 1;
+		//device4->CreateShaderResourceView(m_texture, &srvDesc, m_srvHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 
-	D3D12_UNORDERED_ACCESS_VIEW_DESC description = {};
-	description.Format = texDesc.Format;
-	description.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-	//description.Texture2D.MipSlice = 1;
-	//description.Texture2D.PlaneSlice = 1;
+		D3D12_UNORDERED_ACCESS_VIEW_DESC description = {};
+		description.Format = texDesc.Format;
+		description.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		//description.Texture2D.MipSlice = 1;
+		//description.Texture2D.PlaneSlice = 1;
 
-	device4->CreateUnorderedAccessView(m_texture, nullptr, &description, cpuAddress);
+		device4->CreateUnorderedAccessView(m_texture[i], nullptr, &description, cpuAddress);
+		cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
 }
 
 void Renderer::KeyboardInput()
@@ -1022,7 +1037,7 @@ void Renderer::CopyTexture(ID3D12GraphicsCommandList* cmdList)
 
 	cmdList->CopyResource(
 		renderTargets[backBufferIndex],
-		m_texture);
+		m_texture[backBufferIndex]);
 
 	//Indicate that the back buffer will now be used to present.
 	SetResourceTransitionBarrier(cmdList,
