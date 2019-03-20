@@ -8,7 +8,7 @@ struct BufTypeTrans
 	float x, y, z;
 };
 
-RWStructuredBuffer<BufTypeTrans> BufferPosition : register(u2);
+RWStructuredBuffer<float3> BufferPosition : register(u2);
 
 #define BLOCK_WIDTH 256
 
@@ -19,12 +19,10 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	float length = RADIUS;
 
 	float4 color = index == 0 ?
-		float4(1.0f, 0.0f, 0.0f, 1.0f) :
-		float4(1.0f, 1.0f, 1.0f, 1.0f);
+		float4(0.1f, 0.7f, 1.0f, 1.0f) :
+		float4(1.0f, 0.1f, 0.1f, 1.0f);
 
-	float2 pos = float2(
-		BufferPosition[index].x,
-		BufferPosition[index].y);
+	float2 pos = BufferPosition[index].xy;
 
 	int yMin = pos.y - length;
 	int yMax = pos.y + length + 1;
@@ -36,9 +34,10 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	{
 		for (unsigned int x = xMin; x < xMax; x++)
 		{
-			textureOut[uint2(x, y)].rgba = 
-				distance(float2(x, y), pos) < length ?
-					color : textureOut[uint2(x, y)].rgba;
+			if (distance(float2(x, y), pos) < length)
+			{
+				textureOut[uint2(x, y)].rgba = color;
+			}
 		}
 	}
 }

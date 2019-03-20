@@ -1,6 +1,6 @@
 #pragma once
 #include "D3DHeader.h"
-#include "Object.h"
+#include "Timestamps.h"
 
 #include "CommandQueue.h"
 #include "CommandAllocator.h"
@@ -31,10 +31,10 @@
 
 #define RUN_COMPUTESHADERS 1
 #define RUN_THREADS 1
-#define RUN_ONE_THREAD 1
-#define RUN_SEQUENTIAL 1
+#define RUN_ONE_THREAD 0
+#define RUN_SEQUENTIAL 0
 
-
+#define RUN_TIME_STAMPS false
 
 class Renderer
 {
@@ -47,37 +47,33 @@ public:
 	void startGame();
 	void initThreads();
 
-	void ready();
-	void update();
-	void render();
 	void tm_runFrame(unsigned int iD);
 	void tm_copy();
 	void tm_update();
 	void tm_runCS();
-	void RunComputeShader();
 
 	ID3D12Device4*				device4 = nullptr;
 
 private:
-	void fillLists();
+	D3D12::D3D12Timer frameTimer;
+	D3D12::D3D12Timer computeTimer;
+	D3D12::D3D12Timer copyTimer;
+	void timerPrint();
+
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
-	void updateTranslation();
-	void WaitForGpu(ID3D12CommandQueue* queue);
+	void WaitForGpu(const int iD);
+	void WaitForCompute();
+	void WaitForCopy();
 
 
 	void CreateKeyBoardInput();				
 	void CreateDirect3DDevice();				
 	void CreateCommandInterfacesAndSwapChain(HWND wndHandle);	
 	void CreateFenceAndEventHandle();							
-	void CreateRenderTargets();									
-	void CreateViewportAndScissorRect();						
+	void CreateRenderTargets();							
 	void CreateShadersAndPiplelineState();									
 	void CreateRootSignature();
-	void CreateConstantBufferResources();
 	void CreateUnorderedAccessResources();
-	void CreateDepthStencil();
-
-	void UploadData(void* data, const UINT byteWidth, Resource* pDest);
 
 	HWND hwnd;
 
@@ -95,7 +91,7 @@ private:
 
 	CommandQueue m_graphicsCmdQueue;
 	CommandAllocator m_graphicsCmdAllocator[NUM_SWAP_BUFFERS];
-	CommandList m_graphicsCmdList[NUM_SWAP_BUFFERS];
+	CommandList m_graphicsCmdList;
 
 	CommandQueue m_computeCmdQueue;
 	CommandAllocator m_computeCmdAllocator;
@@ -105,7 +101,6 @@ private:
 	CommandAllocator m_copyCmdAllocator;
 	CommandList m_copyCmdList;
 
-	GraphicsPipelineState m_graphicsState;
 	ComputePipelineState m_computeState;
 	ComputePipelineState m_computeStateKeyboard;
 	ComputePipelineState m_computeStateCollision;
@@ -113,12 +108,7 @@ private:
 	ComputePipelineState m_computeStateDraw;
 	ComputePipelineState m_computeStateTranslation;
 
-	DescriptorHeap m_constantBufferHeap;
-	UploadResource m_constantBufferResource[NUM_CONST_BUFFERS];
-
 	DescriptorHeap m_uavHeap;
-	DefaultResource m_uavResourceFloat4;
-	DefaultResource m_uavResourceIntArray;
 
 	ID3D12Resource* m_texture;
 	DescriptorHeap m_srvHeap;
@@ -126,36 +116,32 @@ private:
 
 	UAVBuffer m_uavArray[NUM_UAV_BUFFERS];
 
-	UAVBuffer m_uavFloat4, m_uavIntArray;
-
 	IDXGISwapChain4*			swapChain4 = nullptr;
 
-	ID3D12Fence1*				fence = nullptr;
-	HANDLE						eventHandle = nullptr;
+	ID3D12Fence1*				fence[NUM_SWAP_BUFFERS];
+	ID3D12Fence1*				copyFence = nullptr;
+	ID3D12Fence1*				computeFence = nullptr;
+	HANDLE						eventHandle[NUM_SWAP_BUFFERS];
+	HANDLE						copyEventHandle = nullptr;
+	HANDLE						computeEventHandle = nullptr;
 	UINT64						fenceValue = 0;
 
-	ID3D12DescriptorHeap*		renderTargetsHeap = nullptr;
 	ID3D12Resource1*			renderTargets[NUM_SWAP_BUFFERS] = {};
-	UINT						renderTargetDescriptorSize = 0;
-
-	D3D12_VIEWPORT				viewport = {};
-	D3D12_RECT					scissorRect = {};
 
 	ID3D12RootSignature*		rootSignature = nullptr;
-	ID3D12PipelineState*		pipeLineState = nullptr;
 	
 	ID3D12DescriptorHeap*		descriptorHeap[NUM_SWAP_BUFFERS] = {};
-
-	ID3D12DescriptorHeap*		dsDescriptorHeap = {};
-	ID3D12Resource*				depthStencilBuffer = {};
 	
 	KeyBoardInput*				keyboard = nullptr;
 
-	//-----------------------
-
-	Object* object;
-	std::vector<Object*> objectList;
-
-
-
+	void KeyboardInput();
+	void KeyboardUpload();
+	void KeyboardShader();
+	void Translate();
+	void Collision();
+	void Fence();
+	void CopyTranslation(ID3D12GraphicsCommandList* cmdList);
+	void DrawShader(ID3D12GraphicsCommandList* cmdList);
+	void CopyTexture(ID3D12GraphicsCommandList* cmdList);
+	void PresentFrame(ID3D12GraphicsCommandList* cmdList);
 };

@@ -124,11 +124,11 @@
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="GraphicsPipelineState.h" />
     <ClInclude Include="KeyBoardInput.h" />
-    <ClInclude Include="Object.h" />
     <ClInclude Include="PipelineState.h" />
     <ClInclude Include="ReadbackResource.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="Timestamps.h" />
     <ClInclude Include="UAVBuffer.h" />
     <ClInclude Include="UploadResource.h" />
   </ItemGroup>
@@ -213,11 +213,11 @@
     <ClCompile Include="ComputePipelineState.cpp" />
     <ClCompile Include="DefaultResource.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
+    <ClCompile Include="Timestamps.cpp" />
     <ClCompile Include="UAVBuffer.cpp" />
     <ClCompile Include="GraphicsPipelineState.cpp" />
     <ClCompile Include="KeyBoardInput.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Object.cpp" />
     <ClCompile Include="ReadbackResource.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="UploadResource.cpp" />

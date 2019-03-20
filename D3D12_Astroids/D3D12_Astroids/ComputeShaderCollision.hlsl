@@ -15,7 +15,7 @@ RWStructuredBuffer<BufTypeTrans> BufferDirection : register(u3);
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-	int index = DTid.x +1; // Don't collide with player
+	int index = DTid.x + 1; // Don't check collision for player
 
 	BufTypeTrans tempObj = BufferPosition[index];
 	float3 thisObj = float3(tempObj.x, tempObj.y, tempObj.z);
@@ -45,22 +45,22 @@ void main( uint3 DTid : SV_DispatchThreadID )
 		BufferPosition[0].z = -1.0f;
 	}
 
-	//for (int i = 0; i < NROFOBJECTS; i++)
-	//{
-	//	if (DTid.x != i)
-	//	{
-	//		float3 thatObj = { BufferPosition[i].x, BufferPosition[i].y, 1.0f };
+	for (int i = 0; i < NROFOBJECTS; i++)
+	{
+		if (index != i)
+		{
+			float3 thatObj = { BufferPosition[i].x, BufferPosition[i].y, 1.0f };
 
-	//		float dist = distance(thisObj, thatObj);
+			float dist = distance(thisObj, thatObj);
 
-	//		if (dist <= RADIUS * 2.0f)
-	//		{
-	//			dir.x *= -1.0f;
-	//			dir.y *= -1.0f;
-	//			//dir.z *= 1.01f;
-	//		}
-	//	}
-	//}
+			if (dist <= RADIUS * 2.0f)
+			{
+				//dir.x *= -1.0f;
+				//dir.y *= -1.0f;
+				//dir.z *= 1.01f;
+			}
+		}
+	}
 
 	BufTypeTrans newDir;
 	newDir.x = dir.x;
@@ -68,43 +68,4 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	newDir.z = dir.z;
 
 	BufferDirection[index] = newDir;
-
-
-	//if (thisObj.x < 0.0f)
-	//{
-	//	BufferDirection[DTid.x].x = 1.0f;
-	//	//BufferPosition[DTid.x].x = 0.0f;
-	//}
-	//else if (thisObj.x > 960.0f)
-	//{
-	//	BufferDirection[DTid.x].x = -1.0f;
-	//	//BufferPosition[DTid.x].x = 960.0f;
-	//}
-	//else if (thisObj.y < 0.0f)
-	//{
-	//	BufferDirection[DTid.x].y = 1.0f;
-	//	//BufferPosition[DTid.x].y = 0.0f;
-	//}
-	//else if (thisObj.y > 540.0f)
-	//{
-	//	BufferDirection[DTid.x].y = -1.0f;
-	//	//BufferPosition[DTid.x].y = 540.0f;
-	//}
-	/*else
-		for (int i = 0; i < NROFOBJECTS; i++)
-		{
-			if (DTid.x != i)
-			{
-				float3 thatObj = { BufferPosition[i].x, BufferPosition[i].y, 1.0f };
-
-				float dist = distance(thisObj, thatObj);
-
-				if (dist <= RADIUS * 2.0f)
-				{
-					BufferDirection[DTid.x].x *= -1.0f;
-					BufferDirection[DTid.x].y *= -1.0f;
-					BufferDirection[DTid.x].z *= 1.1f;
-				}
-			}
-		}*/
 }
