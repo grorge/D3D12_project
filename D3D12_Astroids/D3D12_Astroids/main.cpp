@@ -31,7 +31,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 			render->initThreads();
 		}
 		
-		while(WM_QUIT != msg.message)
+		while(WM_QUIT != msg.message && render->running)
 		{
 			if(PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 			{

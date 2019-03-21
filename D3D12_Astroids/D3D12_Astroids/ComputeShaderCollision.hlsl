@@ -13,8 +13,8 @@ RWStructuredBuffer<BufTypeTrans> BufferDirection : register(u3);
 
 RWStructuredBuffer<BufTypeTrans> BufferBulletPosition: register(u4);
 
-#define SCREEN_WIDTH 1280.0f
-#define SCREEN_HEIGHT 720.0f
+#define SCREEN_WIDTH 800.0f
+#define SCREEN_HEIGHT 600.0f
 
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
@@ -49,20 +49,22 @@ void main( uint3 DTid : SV_DispatchThreadID )
 		BufferPosition[0].z = -1.0f;
 	}
 
-	for (int i = 0; i < NROFBULLETS; i++)
+	for (int i = 1; i < NROFBULLETS; i++)
 	{
-		if (BufferBulletPosition[i].z != -1.0f)
+		if (BufferBulletPosition[i].z != -1.0f ||true)
 		{
 			float3 thatObj = { BufferBulletPosition[i].x, BufferBulletPosition[i].y, 1.0f };
 
 			float dist = distance(thisObj, thatObj);
 
-			if (dist <= RADIUS_BULLET + RADIUS + 20.0f)
+			if (dist <= RADIUS_BULLET + RADIUS)
 			{
 				//dir.x *= -1.0f;
 				//dir.y *= -1.0f;
-				dir.y = 0.0f;
-				thisObj.y = -100.0f;
+				dir.z = 0.0f;
+
+				BufferPosition[index].x = -100.0f; 
+				BufferBulletPosition[i].x = -100.0f;
 			}
 		}
 	}

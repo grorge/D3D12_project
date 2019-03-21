@@ -55,13 +55,12 @@ void main(uint3 DTid : SV_DispatchThreadID)
 		case key_Space:
 			if (BufferInKeyboard[0].arr[key_Space] != 0)
 			{
-				//BufferBulletDirection[0].y = 1.0f;
-				BufferBulletDirection[0].z = 4.0f;
-				//BufferBulletPosition[1] = float3(300.0f, 300.0f, 1.0f);
-				BufferBulletPosition[0] = BufferPosition[0];
+				BufferBulletPosition[0].y = 1.0f;
 			}
 			else
-				BufferDirection[0].z = 1.0f;
+			{
+				BufferBulletPosition[0].y = 0.0f;
+			}
 			break;
 		default:
 			break;

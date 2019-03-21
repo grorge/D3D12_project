@@ -117,14 +117,12 @@ void Renderer::startGame()
 
 	for (int i = 0; i < 256; i++)
 	{
-		//float temp = (((float)rand() / (float)RAND_MAX) - 0.5f );
 		positionData[i].trans[0] = SCREEN_WIDTH * ((float)rand() / (float)RAND_MAX); // x-value
-		positionData[i].trans[1] = -SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX); // y-value
-		//positionData[i].trans[1] = SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX); // y-value
+		positionData[i].trans[1] = -SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX) * 100.0f - SCREEN_HEIGHT; // y-value
 		positionData[i].trans[2] = 1.0f;
 		directionData[i].trans[0] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
 		directionData[i].trans[1] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
-		directionData[i].trans[2] = 3.0f;
+		directionData[i].trans[2] = 3.0f * ((float)rand() / (float)RAND_MAX) + 1.0f;
 	}
 
 	// Sets a default position for the player
@@ -137,16 +135,17 @@ void Renderer::startGame()
 
 	for (int i = 0; i < 128; i++)
 	{
-		//float temp = (((float)rand() / (float)RAND_MAX) - 0.5f );
 		Bullet_positionData[i].trans[0] = -100.0f; // x-value
-		Bullet_positionData[i].trans[1] = -100.0f; // y-value
-		//positionData[i].trans[1] = SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX); // y-value
+		Bullet_positionData[i].trans[1] = 100.0f; // y-value
 		Bullet_positionData[i].trans[2] = 1.0f;
 
 		Bullet_directionData[i].trans[0] = 0.0f;
 		Bullet_directionData[i].trans[1] = -1.0f;
 		Bullet_directionData[i].trans[2] = 0.0f;
 	}
+	Bullet_positionData[0].trans[0] = 0.0f; // x-value
+	Bullet_positionData[0].trans[1] = 5.0f; // y-value
+	Bullet_positionData[0].trans[2] = 0.0f;
 
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
@@ -1074,13 +1073,13 @@ void Renderer::CopyTranslation(ID3D12GraphicsCommandList * cmdList)
 void Renderer::DrawShader(ID3D12GraphicsCommandList * cmdList)
 {
 	float* data = (float*)m_uavArray[2].GetData();
-	if (true/*data[2] != -1.0f*/) // index 2 is the z-value of the player
-	{
-		cmdList->SetPipelineState(m_computeStateDraw.mp_pipelineState);
-		cmdList->Dispatch(1, 1, 1);
-		cmdList->SetPipelineState(m_computeStateBullet.mp_pipelineState);
-		cmdList->Dispatch(1, 1, 1);
-	}
+	running = data[2] != -1.0f;
+	
+	cmdList->SetPipelineState(m_computeStateDraw.mp_pipelineState);
+	cmdList->Dispatch(1, 1, 1);
+	cmdList->SetPipelineState(m_computeStateBullet.mp_pipelineState);
+	cmdList->Dispatch(1, 1, 1);
+	
 }
 
 void Renderer::CopyTexture(ID3D12GraphicsCommandList* cmdList)

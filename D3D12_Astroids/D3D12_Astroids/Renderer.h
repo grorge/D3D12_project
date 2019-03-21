@@ -19,10 +19,10 @@
 #include <thread>
 
 
-#define SCREEN_WIDTH 1280
-#define SCREEN_HEIGHT 720
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
 
-#define NUM_SWAP_BUFFERS 3
+#define NUM_SWAP_BUFFERS 8
 #define NUM_CONST_BUFFERS 2
 #define NUM_UAV_BUFFERS 6
 
@@ -34,7 +34,7 @@
 #define RUN_ONE_THREAD 0
 #define RUN_SEQUENTIAL 0
 
-#define RUN_TIME_STAMPS false
+#define RUN_TIME_STAMPS true
 #define RUN_LOGICCOUNTER false
 
 class Renderer
@@ -53,6 +53,7 @@ public:
 	void tm_update();
 	void tm_runCS();
 
+	bool running = false;
 	ID3D12Device4*				device4 = nullptr;
 
 private:
@@ -88,7 +89,6 @@ private:
 	std::thread* t_frame[NUM_SWAP_BUFFERS];
 	std::thread* t_copyData;
 	std::thread* t_update;
-	bool running = false;
 	unsigned int currThreadWorking = 0;
 
 	CommandQueue m_graphicsCmdQueue;
