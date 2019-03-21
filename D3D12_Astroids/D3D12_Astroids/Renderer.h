@@ -19,8 +19,8 @@
 #include <thread>
 
 
-#define SCREEN_WIDTH 1600
-#define SCREEN_HEIGHT 900
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 720
 
 #define NUM_SWAP_BUFFERS 3
 #define NUM_CONST_BUFFERS 2

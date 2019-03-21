@@ -9,8 +9,8 @@ struct BufTypeTrans
 RWStructuredBuffer<BufTypeTrans> BufferPosition : register(u2);
 RWStructuredBuffer<BufTypeTrans> BufferDirection : register(u3);
 
-#define SCREEN_WIDTH 1600.0f
-#define SCREEN_HEIGHT 900.0f
+#define SCREEN_WIDTH 1280.0f
+#define SCREEN_HEIGHT 720.0f
 
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )

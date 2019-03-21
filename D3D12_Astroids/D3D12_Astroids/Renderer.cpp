@@ -220,7 +220,7 @@ void Renderer::tm_runFrame(unsigned int iD)
 			while (iD != this->swapChain4->GetCurrentBackBufferIndex()) {}
 		}
 
-		Sleep(2);
+		//Sleep(2);
 
 		//printToDebug("ID: ", (int)iD);
 
