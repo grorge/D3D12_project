@@ -217,20 +217,16 @@ void Renderer::tm_runFrame(unsigned int iD)
 		// Holds the thtead untill it is ready to render
 		if (RUN_ONE_THREAD != 1)
 		{
-			while (iD != this->swapChain4->GetCurrentBackBufferIndex()) {}
+			while (iD != this->currThreadWorking) {}
 		}
 
-		Sleep(2);
+		//Sleep(30);
 
 		//printToDebug("ID: ", (int)iD);
 
-		//WaitForGpu(m_computeCmdQueue());
-		//WaitForGpu(m_graphicsCmdQueue()); //Wait for GPU to finish.
-				  //NOT BEST PRACTICE, only used as such for simplicity.
-
 		m_graphicsCmdList[iD]()->Reset(m_graphicsCmdAllocator[iD](), nullptr);
-		this->currThreadWorking = iD;
-		this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
+	
+		this->backBufferIndex = this->currThreadWorking;
 		
 		//Set root signature
 		m_graphicsCmdList[iD]()->SetComputeRootSignature(rootSignature);
@@ -297,8 +293,11 @@ void Renderer::tm_runFrame(unsigned int iD)
 
 		this->PresentFrame(m_graphicsCmdList[iD]());
 
+		this->currThreadWorking = this->swapChain4->GetCurrentBackBufferIndex();
+
 		WaitForGpu(iD);
 		m_graphicsCmdAllocator[iD]()->Reset();
+		logicPerDraw = 0;
 
 
 		if (RUN_SEQUENTIAL == 1)
@@ -328,6 +327,12 @@ void Renderer::tm_copy()
 		//WaitForGpu(m_copyCmdQueue());
 		this->WaitForCopy();
 
+		if (RUN_LOGICCOUNTER)
+		{
+			int privateLogic = (int)this->logicPerDraw;
+			printToDebug(privateLogic);
+			printToDebug("\n");
+		}
 
 		if (RUN_TIME_STAMPS)
 			this->timerPrint();
@@ -410,6 +415,8 @@ void Renderer::tm_runCS()
 		//Execute the command list.
 		ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
 		m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+		this->logicPerDraw++;
 
 		this->Fence();
 

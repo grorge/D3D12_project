@@ -22,7 +22,7 @@
 #define SCREEN_WIDTH 1600
 #define SCREEN_HEIGHT 900
 
-#define NUM_SWAP_BUFFERS 4
+#define NUM_SWAP_BUFFERS 2
 #define NUM_CONST_BUFFERS 2
 #define NUM_UAV_BUFFERS 5
 
@@ -34,7 +34,8 @@
 #define RUN_ONE_THREAD 0
 #define RUN_SEQUENTIAL 0
 
-#define RUN_TIME_STAMPS true
+#define RUN_TIME_STAMPS false
+#define RUN_LOGICCOUNTER false
 
 class Renderer
 {
@@ -59,6 +60,7 @@ private:
 	D3D12::D3D12Timer computeTimer;
 	D3D12::D3D12Timer copyTimer;
 	void timerPrint();
+	unsigned int logicPerDraw = 0;
 
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
 	void WaitForGpu(const int iD);
