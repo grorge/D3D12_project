@@ -36,7 +36,7 @@ void UploadResource::Initialize(
 		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 
 		/*When set to 0 runtime will use defualt alignment (64KB for buffers)*/
-		desc.Alignment = 0; // D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+		desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
 		desc.Width = m_byteWidth;
 		desc.Height = 1;

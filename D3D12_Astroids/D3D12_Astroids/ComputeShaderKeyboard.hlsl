@@ -5,10 +5,6 @@
 #define key_Space 4
 
 
-struct BufTypeFloat4
-{
-	float x, y, z, w;
-};
 struct BufTypeIntArray
 {
 	unsigned int arr[32];
@@ -18,10 +14,13 @@ struct BufTypeTrans
 	float x, y, z;
 };
 
-RWStructuredBuffer<BufTypeFloat4> BufferOut : register(u0);
+RWStructuredBuffer<float4> BufferOut : register(u0);
 RWStructuredBuffer<BufTypeIntArray> BufferInKeyboard : register(u1);
-//RWStructuredBuffer<BufTypeTrans> BufferPosition : register(u2);
-RWStructuredBuffer<BufTypeTrans> BufferDirection : register(u3);
+RWStructuredBuffer<float3> BufferPosition : register(u2);
+RWStructuredBuffer<float3> BufferDirection : register(u3);
+
+RWStructuredBuffer<float3> BufferBulletPosition: register(u4);
+RWStructuredBuffer<float3> BufferBulletDirection: register(u5);
 
 [numthreads(32, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
@@ -55,7 +54,12 @@ void main(uint3 DTid : SV_DispatchThreadID)
 		//	break;
 		case key_Space:
 			if (BufferInKeyboard[0].arr[key_Space] != 0)
-				BufferDirection[0].z = 2.0f;
+			{
+				//BufferBulletDirection[0].y = 1.0f;
+				BufferBulletDirection[0].z = 4.0f;
+				//BufferBulletPosition[1] = float3(300.0f, 300.0f, 1.0f);
+				BufferBulletPosition[0] = BufferPosition[0];
+			}
 			else
 				BufferDirection[0].z = 1.0f;
 			break;

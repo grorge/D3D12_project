@@ -1,5 +1,5 @@
 
-RWTexture2D<float4> textureOut : register(u6);
+RWTexture2D<float4> textureOut : register(u8);
 //RWStructuredBuffer<float4> textureOut : register(u8);
 
 

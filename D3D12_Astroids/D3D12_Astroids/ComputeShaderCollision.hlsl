@@ -1,6 +1,8 @@
 
 #define NROFOBJECTS 256
+#define NROFBULLETS 128
 #define RADIUS 10.0f
+#define RADIUS_BULLET 5.0f
 
 struct BufTypeTrans
 {
@@ -9,8 +11,10 @@ struct BufTypeTrans
 RWStructuredBuffer<BufTypeTrans> BufferPosition : register(u2);
 RWStructuredBuffer<BufTypeTrans> BufferDirection : register(u3);
 
-#define SCREEN_WIDTH 1600.0f
-#define SCREEN_HEIGHT 900.0f
+RWStructuredBuffer<BufTypeTrans> BufferBulletPosition: register(u4);
+
+#define SCREEN_WIDTH 1280.0f
+#define SCREEN_HEIGHT 720.0f
 
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
@@ -30,7 +34,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	dir.x = (thisObj.x > SCREEN_WIDTH)  ? -1.0f : dir.x;
 
 	dir.y = (thisObj.y < 0.0f)			?  1.0f : dir.y;
-	dir.y = (thisObj.y > SCREEN_HEIGHT) ? -1.0f : dir.y;
+	thisObj.y = (thisObj.y > SCREEN_HEIGHT) ? -1.0f : thisObj.y;
 
 	float3 thatObj = { BufferPosition[0].x, BufferPosition[0].y, 1.0f };
 
@@ -45,19 +49,20 @@ void main( uint3 DTid : SV_DispatchThreadID )
 		BufferPosition[0].z = -1.0f;
 	}
 
-	for (int i = 0; i < NROFOBJECTS; i++)
+	for (int i = 0; i < NROFBULLETS; i++)
 	{
-		if (index != i)
+		if (BufferBulletPosition[i].z != -1.0f)
 		{
-			float3 thatObj = { BufferPosition[i].x, BufferPosition[i].y, 1.0f };
+			float3 thatObj = { BufferBulletPosition[i].x, BufferBulletPosition[i].y, 1.0f };
 
 			float dist = distance(thisObj, thatObj);
 
-			if (dist <= RADIUS * 2.0f)
+			if (dist <= RADIUS_BULLET + RADIUS + 20.0f)
 			{
 				//dir.x *= -1.0f;
 				//dir.y *= -1.0f;
-				//dir.z *= 1.01f;
+				dir.y = 0.0f;
+				thisObj.y = -100.0f;
 			}
 		}
 	}
@@ -66,6 +71,8 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	newDir.x = dir.x;
 	newDir.y = dir.y;
 	newDir.z = dir.z;
+
+	BufferPosition[index].y = thisObj.y;
 
 	BufferDirection[index] = newDir;
 }

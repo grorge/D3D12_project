@@ -19,12 +19,12 @@
 #include <thread>
 
 
-#define SCREEN_WIDTH 1600
-#define SCREEN_HEIGHT 900
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 720
 
-#define NUM_SWAP_BUFFERS 2
+#define NUM_SWAP_BUFFERS 3
 #define NUM_CONST_BUFFERS 2
-#define NUM_UAV_BUFFERS 5
+#define NUM_UAV_BUFFERS 6
 
 #define CONST_COLOR_INDEX 0
 #define CONST_TRANSLATION_INDEX 1
@@ -109,6 +109,8 @@ private:
 	ComputePipelineState m_computeStateClear;
 	ComputePipelineState m_computeStateDraw;
 	ComputePipelineState m_computeStateTranslation;
+	ComputePipelineState m_computeStateBullet;
+	ComputePipelineState m_computeStateBulletTranslation;
 
 	DescriptorHeap m_uavHeap;
 

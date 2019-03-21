@@ -118,8 +118,9 @@ void Renderer::startGame()
 	for (int i = 0; i < 256; i++)
 	{
 		//float temp = (((float)rand() / (float)RAND_MAX) - 0.5f );
-		positionData[i].trans[0] = SCREEN_WIDTH * ((float)rand() / (float)RAND_MAX);
-		positionData[i].trans[1] = SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX);
+		positionData[i].trans[0] = SCREEN_WIDTH * ((float)rand() / (float)RAND_MAX); // x-value
+		positionData[i].trans[1] = -SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX); // y-value
+		//positionData[i].trans[1] = SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX); // y-value
 		positionData[i].trans[2] = 1.0f;
 		directionData[i].trans[0] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
 		directionData[i].trans[1] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
@@ -127,10 +128,25 @@ void Renderer::startGame()
 	}
 
 	// Sets a default position for the player
-	//positionData[0].trans[0] = 300.0f;
-	//positionData[0].trans[1] = 300.0f;
-	//positionData[0].trans[2] = 1.0f;
+	positionData[0].trans[0] = SCREEN_WIDTH / 2.0f;
+	positionData[0].trans[1] = SCREEN_HEIGHT * (2.0f/3.0f);
+	positionData[0].trans[2] = 1.0f;
 
+	TranslatonBuffer Bullet_positionData[128];
+	TranslatonBuffer Bullet_directionData[128];
+
+	for (int i = 0; i < 128; i++)
+	{
+		//float temp = (((float)rand() / (float)RAND_MAX) - 0.5f );
+		Bullet_positionData[i].trans[0] = -100.0f; // x-value
+		Bullet_positionData[i].trans[1] = -100.0f; // y-value
+		//positionData[i].trans[1] = SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX); // y-value
+		Bullet_positionData[i].trans[2] = 1.0f;
+
+		Bullet_directionData[i].trans[0] = 0.0f;
+		Bullet_directionData[i].trans[1] = -1.0f;
+		Bullet_directionData[i].trans[2] = 0.0f;
+	}
 
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
@@ -139,6 +155,8 @@ void Renderer::startGame()
 	m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
 	m_uavArray[2].UploadData(&positionData, m_copyCmdList());
 	m_uavArray[3].UploadData(&directionData, m_copyCmdList());
+	m_uavArray[4].UploadData(&Bullet_positionData, m_copyCmdList());
+	m_uavArray[5].UploadData(&Bullet_directionData, m_copyCmdList());
 
 
 	//Close the list to prepare it for execution.
@@ -246,9 +264,9 @@ void Renderer::tm_runFrame(unsigned int iD)
 			prevIndex = (backBufferIndex - 1);
 		else
 			prevIndex = NUM_SWAP_BUFFERS - 1;
-		handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS - 1 + backBufferIndex);
+		handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + backBufferIndex);
 		handlePrev.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) 
-			* (NUM_UAV_BUFFERS - 1 +  prevIndex);
+			* (NUM_UAV_BUFFERS +  prevIndex);
 		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle);
 		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handlePrev);
 
@@ -737,6 +755,11 @@ void Renderer::CreateShadersAndPiplelineState()
 
 	m_computeStateTranslation.SetComputeShader("ComputeShaderTranslation.hlsl");
 	m_computeStateTranslation.Compile(device4, rootSignature);
+
+	m_computeStateBullet.SetComputeShader("ComputeShaderBullet.hlsl");
+	m_computeStateBullet.Compile(device4, rootSignature);
+	m_computeStateBulletTranslation.SetComputeShader("ComputeShaderBulletTranslation.hlsl");
+	m_computeStateBulletTranslation.Compile(device4, rootSignature);
 }
 
 void Renderer::CreateRootSignature()
@@ -744,7 +767,7 @@ void Renderer::CreateRootSignature()
 	//define descriptor range(s)
 	D3D12_DESCRIPTOR_RANGE  uavRanges;
 	uavRanges.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-	uavRanges.NumDescriptors = NUM_UAV_BUFFERS; //only one CB in this example
+	uavRanges.NumDescriptors = NUM_UAV_BUFFERS + 1; //only one CB in this example
 	uavRanges.BaseShaderRegister = 0; //register b0
 	uavRanges.RegisterSpace = 0; //register(b0,space0);
 	uavRanges.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
@@ -758,7 +781,7 @@ void Renderer::CreateRootSignature()
 	D3D12_DESCRIPTOR_RANGE  uavRanges2;
 	uavRanges2.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 	uavRanges2.NumDescriptors = 1; //only one CB in this example
-	uavRanges2.BaseShaderRegister = NUM_UAV_BUFFERS; //register b0
+	uavRanges2.BaseShaderRegister = NUM_UAV_BUFFERS + 1; //register b0
 	uavRanges2.RegisterSpace = 0; //register(b0,space0);
 	uavRanges2.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
@@ -771,7 +794,7 @@ void Renderer::CreateRootSignature()
 	D3D12_DESCRIPTOR_RANGE  uavRanges3;
 	uavRanges3.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 	uavRanges3.NumDescriptors = 1; //only one CB in this example
-	uavRanges3.BaseShaderRegister = NUM_UAV_BUFFERS + 1; //register b0
+	uavRanges3.BaseShaderRegister = NUM_UAV_BUFFERS + 2; //register b0
 	uavRanges3.RegisterSpace = 0; //register(b0,space0);
 	uavRanges3.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
@@ -868,11 +891,32 @@ void Renderer::CreateUnorderedAccessResources()
 	desc3.Buffer.CounterOffsetInBytes = 0;
 	desc3.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
+	// Bullet position buffer
+	D3D12_UNORDERED_ACCESS_VIEW_DESC desc4 = {};
+	desc4.Format = DXGI_FORMAT_UNKNOWN;
+	desc4.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	desc4.Buffer.FirstElement = 0;
+	desc4.Buffer.NumElements = 128;
+	desc4.Buffer.StructureByteStride = sizeof(float) * 3;
+	desc4.Buffer.CounterOffsetInBytes = 0;
+	desc4.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+	// Bullet direction buffer
+	D3D12_UNORDERED_ACCESS_VIEW_DESC desc5 = {};
+	desc5.Format = DXGI_FORMAT_UNKNOWN;
+	desc5.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	desc5.Buffer.FirstElement = 0;
+	desc5.Buffer.NumElements = 128;
+	desc5.Buffer.StructureByteStride = sizeof(float) * 3;
+	desc5.Buffer.CounterOffsetInBytes = 0;
+	desc5.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
 	const D3D12_UNORDERED_ACCESS_VIEW_DESC descArray[] = {
 		desc0,
 		desc1,
 		desc2,
 		desc3,
+		desc4,
+		desc5,
 	};
 
 	const UINT byteWidthArray[] = {
@@ -880,9 +924,13 @@ void Renderer::CreateUnorderedAccessResources()
 		1024,
 		4096,
 		4096,
+		2048,
+		2048,
 	};
 
 	const bool cpuWriteArray[] = {
+		true,
+		true,
 		true,
 		true,
 		true,
@@ -894,9 +942,11 @@ void Renderer::CreateUnorderedAccessResources()
 		false,
 		true,
 		false,
+		false,
+		false,
 	};
 
-	for (int i = 0; i < NUM_UAV_BUFFERS - 1; i++)
+	for (int i = 0; i < NUM_UAV_BUFFERS; i++)
 	{
 		m_uavArray[i].Initialize(
 			device4,
@@ -916,6 +966,8 @@ void Renderer::CreateUnorderedAccessResources()
 	m_uavArray[1]()->SetName(L"Keyboard Buffer");
 	m_uavArray[2]()->SetName(L"Position Buffer");
 	m_uavArray[3]()->SetName(L"Direction Buffer");
+	m_uavArray[4]()->SetName(L"Bullet position Buffer");
+	m_uavArray[5]()->SetName(L"Bullet direction Buffer");
 
 	// Describe and create a shader resource view (SRV) heap for the texture.
 	m_srvHeap.Initialize(
@@ -997,6 +1049,9 @@ void Renderer::Translate()
 	// Moves the objects
 	m_computeCmdList()->SetPipelineState(m_computeStateTranslation.mp_pipelineState);
 	m_computeCmdList()->Dispatch(256, 1, 1);
+	// Moves the bullets
+	m_computeCmdList()->SetPipelineState(m_computeStateBulletTranslation.mp_pipelineState);
+	m_computeCmdList()->Dispatch(128, 1, 1);
 }
 
 void Renderer::Collision()
@@ -1022,6 +1077,8 @@ void Renderer::DrawShader(ID3D12GraphicsCommandList * cmdList)
 	if (true/*data[2] != -1.0f*/) // index 2 is the z-value of the player
 	{
 		cmdList->SetPipelineState(m_computeStateDraw.mp_pipelineState);
+		cmdList->Dispatch(1, 1, 1);
+		cmdList->SetPipelineState(m_computeStateBullet.mp_pipelineState);
 		cmdList->Dispatch(1, 1, 1);
 	}
 }
