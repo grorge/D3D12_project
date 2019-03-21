@@ -24,11 +24,11 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
 	float2 pos = BufferPosition[index].xy;
 
-	int yMin = pos.y - length;
-	int yMax = pos.y + length + 1;
+	unsigned int yMin = pos.y - length;
+	unsigned int yMax = pos.y + length + 1;
 
-	int xMin = pos.x - length;
-	int xMax = pos.x + length + 1;
+	unsigned int xMin = pos.x - length;
+	unsigned int xMax = pos.x + length + 1;
 
 	for (unsigned int y = yMin; y < yMax; y++)
 	{

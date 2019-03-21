@@ -34,7 +34,7 @@
 #define RUN_ONE_THREAD 0
 #define RUN_SEQUENTIAL 0
 
-#define RUN_TIME_STAMPS false
+#define RUN_TIME_STAMPS true
 
 class Renderer
 {

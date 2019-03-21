@@ -109,7 +109,7 @@ void Renderer::init(HWND hwnd)
 
 void Renderer::startGame()
 {
-	srand(time(NULL));
+	srand((unsigned int)time(NULL));
 
 	ConstantBuffer data = { 1.0f, 2.0f, 3.0f, 4.0f }; 
 	TranslatonBuffer positionData[256];
@@ -340,16 +340,8 @@ void Renderer::tm_copy()
 
 void Renderer::tm_update()
 {
-	std::thread* threads[50];
-
-	while (false/*this->running*/)
-	{
-
-	}
-
 	while (this->running)
 	{
-
 		this->tm_copy();
 		this->tm_runCS();
 		this->tm_runFrame(0);
@@ -431,7 +423,7 @@ void Renderer::timerPrint()
 	//get time in ms
 	UINT64 queueFreq;
 	m_graphicsCmdQueue()->GetTimestampFrequency(&queueFreq);
-	double timestampToMs = (1.0 / queueFreq) * 1000.0;
+	float timestampToMs = (1.0f / queueFreq) * 1000.0f;
 
 	D3D12::GPUTimestampPair timerFrame = this->frameTimer.getTimestampPair(0);
 	D3D12::GPUTimestampPair timerCopyTran = this->frameTimer.getTimestampPair(1);
