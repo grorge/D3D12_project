@@ -109,7 +109,7 @@ void Renderer::init(HWND hwnd)
 
 void Renderer::startGame()
 {
-	srand(time(NULL));
+	srand((unsigned int)time(NULL));
 
 	ConstantBuffer data = { 1.0f, 2.0f, 3.0f, 4.0f }; 
 	TranslatonBuffer positionData[256];
@@ -217,20 +217,16 @@ void Renderer::tm_runFrame(unsigned int iD)
 		// Holds the thtead untill it is ready to render
 		if (RUN_ONE_THREAD != 1)
 		{
-			while (iD != this->swapChain4->GetCurrentBackBufferIndex()) {}
+			while (iD != this->currThreadWorking) {}
 		}
 
-		//Sleep(2);
+		//Sleep(30);
 
 		//printToDebug("ID: ", (int)iD);
 
-		//WaitForGpu(m_computeCmdQueue());
-		//WaitForGpu(m_graphicsCmdQueue()); //Wait for GPU to finish.
-				  //NOT BEST PRACTICE, only used as such for simplicity.
-
 		m_graphicsCmdList[iD]()->Reset(m_graphicsCmdAllocator[iD](), nullptr);
-		this->currThreadWorking = iD;
-		this->backBufferIndex = swapChain4->GetCurrentBackBufferIndex();
+	
+		this->backBufferIndex = this->currThreadWorking;
 		
 		//Set root signature
 		m_graphicsCmdList[iD]()->SetComputeRootSignature(rootSignature);
@@ -297,8 +293,11 @@ void Renderer::tm_runFrame(unsigned int iD)
 
 		this->PresentFrame(m_graphicsCmdList[iD]());
 
+		this->currThreadWorking = this->swapChain4->GetCurrentBackBufferIndex();
+
 		WaitForGpu(iD);
 		m_graphicsCmdAllocator[iD]()->Reset();
+		logicPerDraw = 0;
 
 
 		if (RUN_SEQUENTIAL == 1)
@@ -328,6 +327,12 @@ void Renderer::tm_copy()
 		//WaitForGpu(m_copyCmdQueue());
 		this->WaitForCopy();
 
+		if (RUN_LOGICCOUNTER)
+		{
+			int privateLogic = (int)this->logicPerDraw;
+			printToDebug(privateLogic);
+			printToDebug("\n");
+		}
 
 		if (RUN_TIME_STAMPS)
 			this->timerPrint();
@@ -340,16 +345,8 @@ void Renderer::tm_copy()
 
 void Renderer::tm_update()
 {
-	std::thread* threads[50];
-
-	while (false/*this->running*/)
-	{
-
-	}
-
 	while (this->running)
 	{
-
 		this->tm_copy();
 		this->tm_runCS();
 		this->tm_runFrame(0);
@@ -419,6 +416,8 @@ void Renderer::tm_runCS()
 		ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
 		m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
+		this->logicPerDraw++;
+
 		this->Fence();
 
 		if (RUN_SEQUENTIAL == 1)
@@ -431,7 +430,7 @@ void Renderer::timerPrint()
 	//get time in ms
 	UINT64 queueFreq;
 	m_graphicsCmdQueue()->GetTimestampFrequency(&queueFreq);
-	double timestampToMs = (1.0 / queueFreq) * 1000.0;
+	float timestampToMs = (1.0f / queueFreq) * 1000.0f;
 
 	D3D12::GPUTimestampPair timerFrame = this->frameTimer.getTimestampPair(0);
 	D3D12::GPUTimestampPair timerCopyTran = this->frameTimer.getTimestampPair(1);

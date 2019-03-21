@@ -35,6 +35,7 @@
 #define RUN_SEQUENTIAL 0
 
 #define RUN_TIME_STAMPS false
+#define RUN_LOGICCOUNTER false
 
 class Renderer
 {
@@ -59,6 +60,7 @@ private:
 	D3D12::D3D12Timer computeTimer;
 	D3D12::D3D12Timer copyTimer;
 	void timerPrint();
+	unsigned int logicPerDraw = 0;
 
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
 	void WaitForGpu(const int iD);
