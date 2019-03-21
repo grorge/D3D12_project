@@ -20,9 +20,9 @@
 
 
 #define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
+#define SCREEN_HEIGHT 800
 
-#define NUM_SWAP_BUFFERS 8
+#define NUM_SWAP_BUFFERS 6
 #define NUM_CONST_BUFFERS 2
 #define NUM_UAV_BUFFERS 6
 
@@ -34,7 +34,7 @@
 #define RUN_ONE_THREAD 0
 #define RUN_SEQUENTIAL 0
 
-#define RUN_TIME_STAMPS true
+#define RUN_TIME_STAMPS false
 #define RUN_LOGICCOUNTER false
 
 class Renderer

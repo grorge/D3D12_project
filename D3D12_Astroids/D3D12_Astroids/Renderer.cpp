@@ -84,7 +84,7 @@ void Renderer::init(HWND hwnd)
 	this->hwnd = hwnd;
 
 	this->CreateKeyBoardInput();
-
+	
 	this->CreateDirect3DDevice();					
 	this->CreateCommandInterfacesAndSwapChain(hwnd);	
 	this->CreateFenceAndEventHandle();						
@@ -105,6 +105,7 @@ void Renderer::init(HWND hwnd)
 	
 	//this->WaitForGpu(m_computeCmdQueue());
 	WaitForCompute();
+	Sleep(8000);
 }
 
 void Renderer::startGame()
@@ -186,7 +187,6 @@ void Renderer::initThreads()
 		}
 		for (int i = 0; i < nrOfThreads; i++)
 		{
-			//this->frameThreads[i] = new std::thread(&Renderer::render, i, this );
 			this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrame(i); }, this);
 		}
 		this->t_copyData = new std::thread([&](Renderer* rnd) { rnd->tm_copy(); }, this);
@@ -276,6 +276,7 @@ void Renderer::tm_runFrame(unsigned int iD)
 
 		if (RUN_TIME_STAMPS)
 		{
+
 			this->frameTimer.start(this->m_graphicsCmdList[iD](), 0);
 
 			this->frameTimer.start(this->m_graphicsCmdList[iD](), 1);
@@ -296,6 +297,10 @@ void Renderer::tm_runFrame(unsigned int iD)
 			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 1);
 			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 2);
 			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 3);
+
+			this->frameTimer.stop(this->m_graphicsCmdList[prevIndex](), 4);
+			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 4);
+			this->frameTimer.start(this->m_graphicsCmdList[iD](), 4);
 		}
 		else
 		{
@@ -308,6 +313,7 @@ void Renderer::tm_runFrame(unsigned int iD)
 
 
 
+		//WaitForGpu(prevIndex);
 		this->PresentFrame(m_graphicsCmdList[iD]());
 
 		this->currThreadWorking = this->swapChain4->GetCurrentBackBufferIndex();
@@ -453,51 +459,56 @@ void Renderer::timerPrint()
 	D3D12::GPUTimestampPair timerCopyTran = this->frameTimer.getTimestampPair(1);
 	D3D12::GPUTimestampPair timerDraw = this->frameTimer.getTimestampPair(2);
 	D3D12::GPUTimestampPair timerCopyTex = this->frameTimer.getTimestampPair(3);
+	D3D12::GPUTimestampPair test = this->frameTimer.getTimestampPair(4);
 	D3D12::GPUTimestampPair timerTranslate = this->computeTimer.getTimestampPair(4);
 	D3D12::GPUTimestampPair timerCollsion = this->computeTimer.getTimestampPair(5);
 
 	UINT64 dt = timerFrame.Stop - timerFrame.Start;
 	float timeInMs = dt * timestampToMs;
 
-	printToDebug("___DRAW___		");
-	printToDebug("\n");
-	printToDebug("FillList:			");
+	printToDebug("	___DRAW___	");
+	//printToDebug("\n");
+	printToDebug("	FillList:	");
 	printToDebug(timeInMs);
-	printToDebug("\n");
+	//printToDebug("\n");
 
-	dt = timerCopyTran.Stop - timerCopyTran.Start;
-	timeInMs = dt * timestampToMs;
-	printToDebug("Copy Translation:	");
-	printToDebug(timeInMs);
-	printToDebug("\n");
+	//dt = timerCopyTran.Stop - timerCopyTran.Start;
+	//timeInMs = dt * timestampToMs;
+	//printToDebug("	Copy Translation:	");
+	//printToDebug(timeInMs);
+	//printToDebug("\n");
 
 	dt = timerDraw.Stop - timerDraw.Start;
 	timeInMs = dt * timestampToMs;
-	printToDebug("Draw on texture:	");
+	printToDebug("	Draw on texture:	");
 	printToDebug(timeInMs);
-	printToDebug("\n");
+	//printToDebug("\n");
 
 	dt = timerCopyTex.Stop - timerCopyTex.Start;
 	timeInMs = dt * timestampToMs;
-	printToDebug("Copy Texture:		");
+	printToDebug("	Copy Texture:	");
 	printToDebug(timeInMs);
-	printToDebug("\n");
+	//printToDebug("\n");
 
 
-	printToDebug("___LOGIC___		");
-	printToDebug("\n");
+	printToDebug("	___LOGIC___	");
+	//printToDebug("\n");
 	dt = timerTranslate.Stop - timerTranslate.Start;
 	timeInMs = dt * timestampToMs;
-	printToDebug("Translation:		");
+	printToDebug("	Translation:	");
 	printToDebug(timeInMs);
-	printToDebug("\n");
+	//printToDebug("\n");
 
 	dt = timerCollsion.Stop - timerCollsion.Start;
 	timeInMs = dt * timestampToMs;
-	printToDebug("Collison:			");
+	printToDebug("	Collison:	");
 	printToDebug(timeInMs);
-	printToDebug("\n");
+	//printToDebug("\n");
 
+	dt = test.Stop - test.Start;
+	timeInMs = dt * timestampToMs;
+	printToDebug("	test:	");
+	printToDebug(timeInMs);
 
 	printToDebug("\n");
 }
@@ -579,7 +590,7 @@ void Renderer::CreateDirect3DDevice()
 	IDXGIAdapter1*	adapter = nullptr;
 	//First a factory is created to iterate through the adapters available.
 	CreateDXGIFactory(IID_PPV_ARGS(&factory));
-	for (UINT adapterIndex = 0;; ++adapterIndex)
+	for (UINT adapterIndex = 1;; ++adapterIndex)
 	{
 		adapter = nullptr;
 		if (DXGI_ERROR_NOT_FOUND == factory->EnumAdapters1(adapterIndex, &adapter))
@@ -651,7 +662,7 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 	m_graphicsCmdQueue.Initialize(
 		device4,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		D3D12_COMMAND_QUEUE_PRIORITY_NORMAL);
+		D3D12_COMMAND_QUEUE_PRIORITY_HIGH);
 
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
@@ -1031,7 +1042,7 @@ void Renderer::KeyboardUpload()
 
 	// Dowload the position data from the GPU, this is to see the players state with the z-value
 	// We dowload alot but we only need 1 float, this is to stress the system
-	m_uavArray[2].DownloadData(m_copyCmdList());
+	//m_uavArray[2].DownloadData(m_copyCmdList());
 
 	
 }
@@ -1073,7 +1084,7 @@ void Renderer::CopyTranslation(ID3D12GraphicsCommandList * cmdList)
 void Renderer::DrawShader(ID3D12GraphicsCommandList * cmdList)
 {
 	float* data = (float*)m_uavArray[2].GetData();
-	running = data[2] != -1.0f;
+	//running = data[2] != -1.0f;
 	
 	cmdList->SetPipelineState(m_computeStateDraw.mp_pipelineState);
 	cmdList->Dispatch(1, 1, 1);
