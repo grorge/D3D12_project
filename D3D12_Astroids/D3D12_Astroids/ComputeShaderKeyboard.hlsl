@@ -25,70 +25,37 @@ RWStructuredBuffer<float3> BufferBulletDirection: register(u5);
 [numthreads(32, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	//if (BufferInKeyboard[0].arr[DTid.x] != 0)
-		switch (DTid.x)
+	switch (DTid.x)
+	{
+	case key_W:
+	case key_S:
+		if (BufferInKeyboard[0].arr[key_W] != 0)
+			BufferDirection[0].y = -1.0f;
+		else if (BufferInKeyboard[0].arr[key_S] != 0)
+			BufferDirection[0].y = 1.0f;
+		else
+			BufferDirection[0].y = 0.0f;
+		break;
+	case key_A:
+	case key_D:
+		if (BufferInKeyboard[0].arr[key_A] != 0)
+			BufferDirection[0].x = -1.0f;
+		else if (BufferInKeyboard[0].arr[key_D] != 0)
+			BufferDirection[0].x = 1.0f;
+		else
+			BufferDirection[0].x = 0.0f;
+		break;
+	case key_Space:
+		if (BufferInKeyboard[0].arr[key_Space] != 0)
 		{
-		case key_W:
-		case key_S:
-			if (BufferInKeyboard[0].arr[key_W] != 0)
-				BufferDirection[0].y = -1.0f;
-			else if (BufferInKeyboard[0].arr[key_S] != 0)
-				BufferDirection[0].y = 1.0f;
-			else
-				BufferDirection[0].y = 0.0f;
-			break;
-		case key_A:
-		case key_D:
-			if (BufferInKeyboard[0].arr[key_A] != 0)
-				BufferDirection[0].x = -1.0f;
-			else if (BufferInKeyboard[0].arr[key_D] != 0)
-				BufferDirection[0].x = 1.0f;
-			else
-				BufferDirection[0].x = 0.0f;
-			break;
-		//case key_S:
-		//	BufferDirection[0].y = 1.0f;
-		//	break;
-		//case key_D:
-		//	BufferDirection[0].x = 1.0f;
-		//	break;
-		case key_Space:
-			if (BufferInKeyboard[0].arr[key_Space] != 0)
-			{
-				BufferBulletPosition[0].y = 1.0f;
-			}
-			else
-			{
-				BufferBulletPosition[0].y = 0.0f;
-			}
-			break;
-		default:
-			break;
+			BufferBulletPosition[0].y = 1.0f;
 		}
-
-	
-	//switch (DTid.x)
-	//{
-	//case key_W:
-	//	if (BufferInKeyboard[0].arr[key_S] == 0)
-	//		BufferDirection[0].y = 0.0f;
-	//	break;
-	//case key_A:
-	//	if (BufferInKeyboard[0].arr[key_D] == 0)
-	//		BufferDirection[0].x = 0.0f;
-	//	break;
-	//case key_S:
-	//	if (BufferInKeyboard[0].arr[key_W] == 0)
-	//		BufferDirection[0].y = 0.0f;
-	//	break;
-	//case key_D:
-	//	if (BufferInKeyboard[0].arr[key_A] == 0)
-	//		BufferDirection[0].x = 0.0f;
-	//	break;
-	//case key_Space:
-	//	BufferDirection[0].z = 2.0f;
-	//	break;
-	//default:
-	//	break;
-	//}
+		else
+		{
+			BufferBulletPosition[0].y = 0.0f;
+		}
+		break;
+	default:
+		break;
+	}
 }

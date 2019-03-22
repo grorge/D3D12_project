@@ -2,6 +2,7 @@
 
 Renderer::Renderer()
 {
+	present = false;
 }
 
 Renderer::~Renderer()
@@ -105,7 +106,7 @@ void Renderer::init(HWND hwnd)
 	
 	//this->WaitForGpu(m_computeCmdQueue());
 	WaitForCompute();
-	Sleep(8000);
+	Sleep(2000);
 }
 
 void Renderer::startGame()
@@ -185,9 +186,11 @@ void Renderer::initThreads()
 		{
 			nrOfThreads = 1;
 		}
+
 		for (int i = 0; i < nrOfThreads; i++)
 		{
 			this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrame(i); }, this);
+			Sleep(10);
 		}
 		this->t_copyData = new std::thread([&](Renderer* rnd) { rnd->tm_copy(); }, this);
 		this->t_update = new std::thread([&](Renderer* rnd) { rnd->tm_runCS(); }, this);
@@ -227,118 +230,137 @@ void Renderer::initThreads()
 	
 }
 
-void Renderer::tm_runFrame(unsigned int iD)
+void Renderer::tm_runFrame(const unsigned int iD)
 {
+	
+	printToDebug("ID:", (int)iD); 
+
 	while (this->running)
 	{
 		// Holds the thtead untill it is ready to render
-		if (RUN_ONE_THREAD != 1)
+		if (iD == this->currThreadWorking)
 		{
-			while (iD != this->currThreadWorking) {}
-		}
+			const int tempiD = iD;
 
-		//Sleep(30);
+			WaitForGpu(iD);
+			m_graphicsCmdAllocator[iD]()->Reset();
 
-		/*for (int i = 0; i < iD; i++)
-		{
-			printToDebug("	");
-		}
-		printToDebug("ID:	", (int)iD);*/
+			int temp = 0;
 
-		m_graphicsCmdList[iD]()->Reset(m_graphicsCmdAllocator[iD](), nullptr);
-	
-		this->backBufferIndex = this->currThreadWorking;
-		
-		//Set root signature
-		m_graphicsCmdList[iD]()->SetComputeRootSignature(rootSignature);
+			printToDebug("Thread: ", (int)iD, " Step: ", temp++); // Step 0
 
-		
-		ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
-		m_graphicsCmdList[iD]()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
-		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(0, this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
-		
+			//Sleep(30);
 
+			/*for (int i = 0; i < iD; i++)
+			{
+				printToDebug("	");
+			}
+			printToDebug("ID:	", (int)iD);*/
 
-		D3D12_GPU_DESCRIPTOR_HANDLE handle = this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
-		D3D12_GPU_DESCRIPTOR_HANDLE handlePrev = this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+			m_graphicsCmdList[iD]()->Reset(m_graphicsCmdAllocator[iD](), nullptr);
 
-		int prevIndex;
-		if (backBufferIndex != 0)
-			prevIndex = (backBufferIndex - 1);
-		else
-			prevIndex = NUM_SWAP_BUFFERS - 1;
-		handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + backBufferIndex);
-		handlePrev.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) 
-			* (NUM_UAV_BUFFERS +  prevIndex);
+			this->backBufferIndex = this->currThreadWorking;
+
+			//Set root signature
+			m_graphicsCmdList[iD]()->SetComputeRootSignature(rootSignature);
 
 
-		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle);
-		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handle);
-
-		// Clear Texture
-		m_graphicsCmdList[iD]()->SetPipelineState(m_computeStateClear.mp_pipelineState);
-		m_graphicsCmdList[iD]()->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
-		this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
-		
-
-		if (RUN_TIME_STAMPS)
-		{
-
-			this->frameTimer.start(this->m_graphicsCmdList[iD](), 0);
-
-			this->frameTimer.start(this->m_graphicsCmdList[iD](), 1);
-			this->CopyTranslation(m_graphicsCmdList[iD]());
-			this->frameTimer.stop(this->m_graphicsCmdList[iD](), 1);
-
-			this->frameTimer.start(this->m_graphicsCmdList[iD](), 2);
-			this->DrawShader(m_graphicsCmdList[iD]());
-			this->frameTimer.stop(this->m_graphicsCmdList[iD](), 2);
-
-			this->frameTimer.start(this->m_graphicsCmdList[iD](), 3);
-			this->CopyTexture(m_graphicsCmdList[iD]());
-			this->frameTimer.stop(this->m_graphicsCmdList[iD](), 3);
-
-			this->frameTimer.stop(this->m_graphicsCmdList[iD](), 0);
-
-			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 0);
-			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 1);
-			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 2);
-			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 3);
+			ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
+			m_graphicsCmdList[iD]()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(0, this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
 
-		}
-		else
-		{
-	
-			this->CopyTranslation(m_graphicsCmdList[iD]());
-			this->DrawShader(m_graphicsCmdList[iD]());
+
+			D3D12_GPU_DESCRIPTOR_HANDLE handle = this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+			D3D12_GPU_DESCRIPTOR_HANDLE handlePrev = this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
+			int prevIndex = 0;
+			if (backBufferIndex != 0)
+				prevIndex = (backBufferIndex - 1);
+			else
+				prevIndex = NUM_SWAP_BUFFERS - 1;
+			handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + backBufferIndex);
+			handlePrev.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+				* (NUM_UAV_BUFFERS + prevIndex);
+
+
+			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle);
+			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handle);
+
+			// Clear Texture
+			m_graphicsCmdList[iD]()->SetPipelineState(m_computeStateClear.mp_pipelineState);
+			m_graphicsCmdList[iD]()->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
 			this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
-			this->CopyTexture(m_graphicsCmdList[iD]());
-			this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
+			printToDebug("Thread: ", (int)iD, " Step: ", temp++); //Step 1
+
+
+			if (RUN_TIME_STAMPS)
+			{
+
+				this->frameTimer.start(this->m_graphicsCmdList[iD](), 0);
+
+				this->frameTimer.start(this->m_graphicsCmdList[iD](), 1);
+				this->CopyTranslation(m_graphicsCmdList[iD]());
+				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 1);
+
+				this->frameTimer.start(this->m_graphicsCmdList[iD](), 2);
+				this->DrawShader(m_graphicsCmdList[iD]());
+				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 2);
+
+				this->frameTimer.start(this->m_graphicsCmdList[iD](), 3);
+				this->CopyTexture(m_graphicsCmdList[iD]());
+				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 3);
+
+				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 0);
+
+				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 0);
+				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 1);
+				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 2);
+				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 3);
+
+				this->frameTimer.stop(this->m_graphicsCmdList[prevIndex](), 4);
+				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 4);
+				this->frameTimer.start(this->m_graphicsCmdList[iD](), 4);
+			}
+			else
+			{
+				this->CopyTranslation(m_graphicsCmdList[iD]());
+				this->DrawShader(m_graphicsCmdList[iD]());
+				printToDebug("Thread: ", (int)iD, " Step: ", temp++); // Step 2
+				this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
+				this->CopyTexture(m_graphicsCmdList[iD]());
+				printToDebug("Thread: ", (int)iD, " Step: ", temp++); // Step 3
+				this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
+			}
+
+
+
+			printToDebug("Thread: ", (int)iD, " Step: ", temp++); // Step 4
+
+
+
+			//printToDebug("Waiting		ID:	", (int)prevIndex);
+			//printToDebug("Presented	ID:	", (int)prevIndex);
+			this->PresentFrame(m_graphicsCmdList[iD]());
+			//while ((iD == this->currThreadWorking /*&& this->running*/)) {}
+			Sleep(16);
+			printToDebug("Thread: ", (int)iD, " Step: ", temp++); // Step 5
+			Sleep(16);
+
+			printToDebug("Thread: ", (int)iD, " Step: ", temp++);  // Step 6
+			//this->currThreadWorking++;
+			//this->currThreadWorking %= NUM_SWAP_BUFFERS;
+			//this->currThreadWorking = this->swapChain4->GetCurrentBackBufferIndex();
+
+			//WaitForGpu(iD);
+			//m_graphicsCmdAllocator[iD]()->Reset();
+			logicPerDraw = 0;
+
+			if (tempiD != iD)
+			{
+				printToDebug("CHANGE!!!");  // Step 6
+			}
 		}
-		
-		this->frameTimer.stop(this->m_graphicsCmdList[prevIndex](), 4);
-		this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 4);
-		this->frameTimer.start(this->m_graphicsCmdList[iD](), 4);
-
-
-
-
-		//printToDebug("Waiting		ID:	", (int)prevIndex);
-		WaitForGpu(prevIndex);
-		//printToDebug("Presented	ID:	", (int)prevIndex);
-		this->PresentFrame(m_graphicsCmdList[iD]());
-		m_graphicsCmdAllocator[prevIndex]()->Reset();
-
-		//this->currThreadWorking++;
-		//this->currThreadWorking %= NUM_SWAP_BUFFERS;
-		this->currThreadWorking = this->swapChain4->GetCurrentBackBufferIndex();
-
-
-		//WaitForGpu(iD);
-		//m_graphicsCmdAllocator[iD]()->Reset();
-		logicPerDraw = 0;
-
 
 		if (RUN_SEQUENTIAL == 1)
 			break;
@@ -461,6 +483,25 @@ void Renderer::tm_runCS()
 
 		if (RUN_SEQUENTIAL == 1)
 			break;
+	}
+}
+
+void Renderer::tm_main()
+{
+	if (present)
+	{
+		present = false;
+		swapChain4->Present(0, 0);
+		unsigned int prev = this->currThreadWorking;
+		this->currThreadWorking = this->swapChain4->GetCurrentBackBufferIndex();
+		WaitForGpu(prev); 
+
+		cpuTime = clock();
+		float timeToPrint = cpuTime - cpuTimePrev;
+		printToDebug("\n");
+		//printToDebug((int)prev);
+		//printToDebug("	Frametime: ", timeToPrint);
+		cpuTimePrev = cpuTime;
 	}
 }
 
@@ -1064,6 +1105,8 @@ void Renderer::KeyboardInput()
 
 void Renderer::KeyboardUpload()
 {
+
+	this->SetResourceUavBarrier(m_copyCmdList(), m_uavArray[1]());
 	m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
 
 	// Dowload the position data from the GPU, this is to see the players state with the z-value
@@ -1148,10 +1191,12 @@ void Renderer::PresentFrame(ID3D12GraphicsCommandList* cmdList)
 	ID3D12CommandList* listsToExecute[] = { cmdList };
 	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
+	present = true;
+
 	//Present the frame.
 	//DXGI_PRESENT_PARAMETERS pp = {};
 	//swapChain4->Present1(0, 0, &pp);
-	swapChain4->Present(0, 0);
+	//swapChain4->Present(0, 0);
 }
 
 

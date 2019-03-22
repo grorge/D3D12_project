@@ -38,6 +38,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
+			else
+			{
+				render->tm_main();
+			}
 		}
 
 		if (RUN_THREADS) { render->joinThreads(); }

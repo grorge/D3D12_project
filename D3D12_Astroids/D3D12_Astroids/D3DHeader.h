@@ -74,6 +74,24 @@ inline void printToDebug(const int number, ...)
 
 	OutputDebugString(szBuff);
 }
+inline void printToDebug(const char* textToAdd, const float number, ...)
+{
+	std::string strText(textToAdd);
+	std::string strNumb(std::to_string(number));
+
+
+	std::string str = strText + strNumb + "\n";
+
+
+	const char* text = str.c_str();
+	char szBuff[1024];
+	va_list arg;
+	va_start(arg, text);
+	_vsnprintf_s(szBuff, sizeof(szBuff), text, arg);
+	va_end(arg);
+
+	OutputDebugString(szBuff);
+}
 inline void printToDebug(const char* textToAdd, const int number, ...)
 {
 	std::string strText(textToAdd);
@@ -81,6 +99,26 @@ inline void printToDebug(const char* textToAdd, const int number, ...)
 
 
 	std::string str = strText + strNumb + "\n";
+
+
+	const char* text = str.c_str();
+	char szBuff[1024];
+	va_list arg;
+	va_start(arg, text);
+	_vsnprintf_s(szBuff, sizeof(szBuff), text, arg);
+	va_end(arg);
+
+	OutputDebugString(szBuff);
+}
+inline void printToDebug(const char* textToAdd, const int number, const char* textToAdd2, const int number2, ...)
+{
+	std::string strText(textToAdd);
+	std::string strNumb(std::to_string(number));
+	std::string strText2(textToAdd2);
+	std::string strNumb2(std::to_string(number2));
+
+
+	std::string str = strText + strNumb + strText2 + strNumb2 + "\n";
 
 
 	const char* text = str.c_str();

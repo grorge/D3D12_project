@@ -22,7 +22,7 @@
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 800
 
-#define NUM_SWAP_BUFFERS 4
+#define NUM_SWAP_BUFFERS 10
 #define NUM_UAV_BUFFERS 6
 
 #define RUN_COMPUTESHADERS 1
@@ -44,10 +44,12 @@ public:
 	void startGame();
 	void initThreads();
 
-	void tm_runFrame(unsigned int iD);
+	void tm_runFrame(const unsigned int iD);
 	void tm_copy();
 	void tm_update();
 	void tm_runCS();
+
+	void tm_main();
 
 	bool running = false;
 	ID3D12Device4*				device4 = nullptr;
@@ -58,6 +60,11 @@ private:
 	D3D12::D3D12Timer copyTimer;
 	void timerPrint();
 	unsigned int logicPerDraw = 0;
+	long int cpuTime = 0;
+	long int cpuTimePrev = 0;
+
+	bool present;
+	unsigned int lastPresent = NUM_SWAP_BUFFERS + 1;
 
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
 	void SetResourceUavBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource);
