@@ -123,7 +123,7 @@ void Renderer::startGame()
 		positionData[i].trans[2] = 1.0f;
 		directionData[i].trans[0] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
 		directionData[i].trans[1] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
-		directionData[i].trans[2] = 3.0f * ((float)rand() / (float)RAND_MAX) + 1.0f;
+		directionData[i].trans[2] = 0.7f/* * ((float)rand() / (float)RAND_MAX) + 1.0f*/;
 	}
 
 	// Sets a default position for the player
@@ -239,7 +239,11 @@ void Renderer::tm_runFrame(unsigned int iD)
 
 		//Sleep(30);
 
-		//printToDebug("ID: ", (int)iD);
+		/*for (int i = 0; i < iD; i++)
+		{
+			printToDebug("	");
+		}
+		printToDebug("ID:	", (int)iD);*/
 
 		m_graphicsCmdList[iD]()->Reset(m_graphicsCmdAllocator[iD](), nullptr);
 	
@@ -266,12 +270,15 @@ void Renderer::tm_runFrame(unsigned int iD)
 		handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + backBufferIndex);
 		handlePrev.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) 
 			* (NUM_UAV_BUFFERS +  prevIndex);
+
+
 		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle);
-		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handlePrev);
+		m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handle);
 
 		// Clear Texture
 		m_graphicsCmdList[iD]()->SetPipelineState(m_computeStateClear.mp_pipelineState);
 		m_graphicsCmdList[iD]()->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
+		this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
 		
 
 		if (RUN_TIME_STAMPS)
@@ -298,28 +305,38 @@ void Renderer::tm_runFrame(unsigned int iD)
 			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 2);
 			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 3);
 
-			this->frameTimer.stop(this->m_graphicsCmdList[prevIndex](), 4);
-			this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 4);
-			this->frameTimer.start(this->m_graphicsCmdList[iD](), 4);
+
 		}
 		else
 		{
+	
 			this->CopyTranslation(m_graphicsCmdList[iD]());
 			this->DrawShader(m_graphicsCmdList[iD]());
+			this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
 			this->CopyTexture(m_graphicsCmdList[iD]());
+			this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
 		}
 		
+		this->frameTimer.stop(this->m_graphicsCmdList[prevIndex](), 4);
+		this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 4);
+		this->frameTimer.start(this->m_graphicsCmdList[iD](), 4);
 
 
 
 
-		//WaitForGpu(prevIndex);
+		//printToDebug("Waiting		ID:	", (int)prevIndex);
+		WaitForGpu(prevIndex);
+		//printToDebug("Presented	ID:	", (int)prevIndex);
 		this->PresentFrame(m_graphicsCmdList[iD]());
+		m_graphicsCmdAllocator[prevIndex]()->Reset();
 
+		//this->currThreadWorking++;
+		//this->currThreadWorking %= NUM_SWAP_BUFFERS;
 		this->currThreadWorking = this->swapChain4->GetCurrentBackBufferIndex();
 
-		WaitForGpu(iD);
-		m_graphicsCmdAllocator[iD]()->Reset();
+
+		//WaitForGpu(iD);
+		//m_graphicsCmdAllocator[iD]()->Reset();
 		logicPerDraw = 0;
 
 
@@ -395,7 +412,6 @@ void Renderer::tm_runCS()
 
 		//Set root signature
 		m_computeCmdList()->SetComputeRootSignature(rootSignature);
-
 
 		ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
 		m_computeCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
@@ -523,6 +539,16 @@ void Renderer::SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandLi
 	barrierDesc.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	barrierDesc.Transition.StateBefore = StateBefore;
 	barrierDesc.Transition.StateAfter = StateAfter;
+
+	commandList->ResourceBarrier(1, &barrierDesc);
+}
+
+void Renderer::SetResourceUavBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource)
+{
+	D3D12_RESOURCE_BARRIER barrierDesc = {};
+
+	barrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	barrierDesc.UAV.pResource = resource;
 
 	commandList->ResourceBarrier(1, &barrierDesc);
 }
@@ -1123,8 +1149,9 @@ void Renderer::PresentFrame(ID3D12GraphicsCommandList* cmdList)
 	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
 	//Present the frame.
-	DXGI_PRESENT_PARAMETERS pp = {};
-	swapChain4->Present1(0, 0, &pp);
+	//DXGI_PRESENT_PARAMETERS pp = {};
+	//swapChain4->Present1(0, 0, &pp);
+	swapChain4->Present(0, 0);
 }
 
 

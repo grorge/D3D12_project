@@ -22,12 +22,8 @@
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 800
 
-#define NUM_SWAP_BUFFERS 6
-#define NUM_CONST_BUFFERS 2
+#define NUM_SWAP_BUFFERS 4
 #define NUM_UAV_BUFFERS 6
-
-#define CONST_COLOR_INDEX 0
-#define CONST_TRANSLATION_INDEX 1
 
 #define RUN_COMPUTESHADERS 1
 #define RUN_THREADS 1
@@ -64,6 +60,8 @@ private:
 	unsigned int logicPerDraw = 0;
 
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
+	void SetResourceUavBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource);
+
 	void WaitForGpu(const int iD);
 	void WaitForCompute();
 	void WaitForCopy();
