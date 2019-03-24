@@ -17,12 +17,13 @@
 
 #include <vector>
 #include <thread>
+#include <mutex>
 
 
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 800
 
-#define NUM_SWAP_BUFFERS 10
+#define NUM_SWAP_BUFFERS 4
 #define NUM_UAV_BUFFERS 6
 
 #define RUN_COMPUTESHADERS 1
@@ -45,6 +46,7 @@ public:
 	void initThreads();
 
 	void tm_runFrame(const unsigned int iD);
+	void tm_runFrameDebug(const unsigned int iD);
 	void tm_copy();
 	void tm_update();
 	void tm_runCS();
@@ -63,13 +65,14 @@ private:
 	long int cpuTime = 0;
 	long int cpuTimePrev = 0;
 
-	bool present;
+
 	unsigned int lastPresent = NUM_SWAP_BUFFERS + 1;
 
 	void SetResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
 	void SetResourceUavBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource);
 
 	void WaitForGpu(const int iD);
+	void WaitForGpuMain(const int iD);
 	void WaitForCompute();
 	void WaitForCopy();
 
@@ -87,14 +90,20 @@ private:
 
 	HRESULT hr;
 
-	UINT backBufferIndex = 0;
+	UINT backBufferIndex;
 
 	std::thread* t_sequential;
 
+	std::mutex mtxPresent[NUM_SWAP_BUFFERS];
+	std::mutex mtxFrameReadyToClear[NUM_SWAP_BUFFERS];
+	bool threadCreated;
+	bool present[NUM_SWAP_BUFFERS];
+	bool frameReadyToClear[NUM_SWAP_BUFFERS];
+	bool myTurn[NUM_SWAP_BUFFERS];
+	int prevBackBuff;
 	std::thread* t_frame[NUM_SWAP_BUFFERS];
 	std::thread* t_copyData;
 	std::thread* t_update;
-	unsigned int currThreadWorking = 0;
 
 	CommandQueue m_graphicsCmdQueue;
 	CommandAllocator m_graphicsCmdAllocator[NUM_SWAP_BUFFERS];
@@ -128,9 +137,11 @@ private:
 	IDXGISwapChain4*			swapChain4 = nullptr;
 
 	ID3D12Fence1*				fence[NUM_SWAP_BUFFERS];
+	ID3D12Fence1*				mainFence[NUM_SWAP_BUFFERS];
 	ID3D12Fence1*				copyFence = nullptr;
 	ID3D12Fence1*				computeFence = nullptr;
 	HANDLE						eventHandle[NUM_SWAP_BUFFERS];
+	HANDLE						mainEventHandle[NUM_SWAP_BUFFERS];
 	HANDLE						copyEventHandle = nullptr;
 	HANDLE						computeEventHandle = nullptr;
 	UINT64						fenceValue = 0;
@@ -150,7 +161,7 @@ private:
 	void Collision();
 	void Fence();
 	void CopyTranslation(ID3D12GraphicsCommandList* cmdList);
-	void DrawShader(ID3D12GraphicsCommandList* cmdList);
+	void DrawShaders(ID3D12GraphicsCommandList* cmdList, const int iD);
 	void CopyTexture(ID3D12GraphicsCommandList* cmdList);
-	void PresentFrame(ID3D12GraphicsCommandList* cmdList);
+	void PresentFrame(ID3D12GraphicsCommandList* cmdList, const int iD);
 };
