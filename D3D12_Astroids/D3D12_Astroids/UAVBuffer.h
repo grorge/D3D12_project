@@ -18,7 +18,7 @@ public:
 
 	ID3D12Resource* operator()();
 
-	bool UploadData(void* pData, ID3D12GraphicsCommandList* pCmdList);
+	bool UploadData(void* pData, ID3D12GraphicsCommandList* pCmdList, int size);
 	bool DownloadData(ID3D12GraphicsCommandList* pCmdList);
 	void* GetData();
 

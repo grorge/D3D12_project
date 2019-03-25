@@ -26,10 +26,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	{
 		ShowWindow(wndHandle, nCmdShow);
 		
-		if (RUN_THREADS)
-		{
-			render->initThreads();
-		}
+		render->initThreads();
+		
 		
 		while(WM_QUIT != msg.message && render->running)
 		{
@@ -44,7 +42,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 			}
 		}
 
-		if (RUN_THREADS) { render->joinThreads(); }
+		render->joinThreads();
 
 	}
 	
@@ -56,12 +54,16 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
 void EnableDebugLayer()
 {
+#ifdef _DEBUG
 	ID3D12Debug* debugController = nullptr;
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 	{
 		debugController->EnableDebugLayer();
 	}
 	SafeRelease(&debugController);
+#endif // _DEBUG
+
+	
 }
 
 #pragma region InitWindow

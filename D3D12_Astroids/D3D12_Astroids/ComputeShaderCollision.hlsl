@@ -1,5 +1,5 @@
 
-#define NROFOBJECTS 256
+#define NROFOBJECTS 256 * 8
 #define NROFBULLETS 128
 #define RADIUS 10.0f
 #define RADIUS_BULLET 5.0f
@@ -13,8 +13,8 @@ RWStructuredBuffer<BufTypeTrans> BufferDirection : register(u3);
 
 RWStructuredBuffer<BufTypeTrans> BufferBulletPosition: register(u4);
 
-#define SCREEN_WIDTH 800.0f
-#define SCREEN_HEIGHT 600.0f
+#define SCREEN_WIDTH 1600.0f
+#define SCREEN_HEIGHT 900.0f
 
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )

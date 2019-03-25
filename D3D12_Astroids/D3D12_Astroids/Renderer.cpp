@@ -19,21 +19,24 @@ Renderer::~Renderer()
 	//Wait for GPU execution to be done and then release all interfaces.
 	this->WaitForGpu(0);
 	
-	
+	float totalTime = 0;
+	for (int i = 0; i < 64; i++)
+	{
+		totalTime += this->savedTime[i];
+	}
+	totalTime /= 64;
+	printToDebug("\n -------- FRAMETIME: ");
+	printToDebug(totalTime);
+	printToDebug("\n");
+
 	//this->WaitForGpu(m_computeCmdQueue());
 	WaitForCompute();
 
-	if (RUN_SEQUENTIAL)
-	{
-		delete t_sequential;
-	}
-	else
-	{
-		for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
-			delete t_frame[i];
-		delete t_update;
-		delete t_copyData;
-	}
+	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+		delete t_frame[i];
+	delete t_update;
+	delete t_copyData;
+	
 	
 
 	SafeRelease(&device4);		
@@ -70,25 +73,16 @@ Renderer::~Renderer()
 void Renderer::joinThreads()
 {
 	this->running = false;
-	if (RUN_SEQUENTIAL)
+	
+	int nrOfThreads = NUM_SWAP_BUFFERS;
+	for (int i = 0; i < nrOfThreads; i++)
 	{
-		this->t_sequential->join();
+		this->t_frame[i]->join();
 	}
-	else
-	{
-		int nrOfThreads = NUM_SWAP_BUFFERS;
-		if (RUN_ONE_THREAD)
-		{
-			nrOfThreads = 1;
-		}
-		for (int i = 0; i < nrOfThreads; i++)
-		{
-			this->t_frame[i]->join();
-		}
-		this->t_copyData->detach();
-		//this->t_copyData->join();
-		this->t_update->detach();
-	}
+	this->t_copyData->detach();
+	//this->t_copyData->join();
+	this->t_update->detach();
+	
 	
 }
 
@@ -118,6 +112,8 @@ void Renderer::init(HWND hwnd)
 	
 	//this->WaitForGpu(m_computeCmdQueue());
 	WaitForCompute();
+
+	//A quick sleep so that all resources are ready
 	Sleep(2000);
 }
 
@@ -126,13 +122,13 @@ void Renderer::startGame()
 	srand((unsigned int)time(NULL));
 
 	ConstantBuffer data = { 1.0f, 2.0f, 3.0f, 4.0f }; 
-	TranslatonBuffer positionData[256];
-	TranslatonBuffer directionData[256];
+	TranslatonBuffer positionData[256 * OBJECT_MULTIPLIER];
+	TranslatonBuffer directionData[256 * OBJECT_MULTIPLIER];
 
-	for (int i = 0; i < 256; i++)
+	for (int i = 0; i < 256 * OBJECT_MULTIPLIER; i++)
 	{
 		positionData[i].trans[0] = SCREEN_WIDTH * ((float)rand() / (float)RAND_MAX); // x-value
-		positionData[i].trans[1] = -SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX) * 100.0f - SCREEN_HEIGHT; // y-value
+		positionData[i].trans[1] = SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX)/* * 100.0f - SCREEN_HEIGHT*/; // y-value
 		positionData[i].trans[2] = 1.0f;
 		directionData[i].trans[0] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
 		directionData[i].trans[1] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
@@ -142,7 +138,8 @@ void Renderer::startGame()
 	// Sets a default position for the player
 	positionData[0].trans[0] = SCREEN_WIDTH / 2.0f;
 	positionData[0].trans[1] = SCREEN_HEIGHT * (2.0f/3.0f);
-	positionData[0].trans[2] = 1.0f;
+
+	directionData[0].trans[2] = 2.0f; // speed
 
 	TranslatonBuffer Bullet_positionData[128];
 	TranslatonBuffer Bullet_directionData[128];
@@ -164,12 +161,12 @@ void Renderer::startGame()
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
-	m_uavArray[0].UploadData(&data, m_copyCmdList());
-	m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
-	m_uavArray[2].UploadData(&positionData, m_copyCmdList());
-	m_uavArray[3].UploadData(&directionData, m_copyCmdList());
-	m_uavArray[4].UploadData(&Bullet_positionData, m_copyCmdList());
-	m_uavArray[5].UploadData(&Bullet_directionData, m_copyCmdList());
+	m_uavArray[0].UploadData(&data, m_copyCmdList(), sizeof(data));
+	//m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList(), sizeof(data));
+	m_uavArray[2].UploadData(&positionData, m_copyCmdList(), sizeof(positionData));
+	m_uavArray[3].UploadData(&directionData, m_copyCmdList(), sizeof(directionData));
+	m_uavArray[4].UploadData(&Bullet_positionData, m_copyCmdList(), sizeof(Bullet_positionData));
+	m_uavArray[5].UploadData(&Bullet_directionData, m_copyCmdList(), sizeof(Bullet_directionData));
 
 
 	//Close the list to prepare it for execution.
@@ -187,28 +184,19 @@ void Renderer::initThreads()
 {
 	this->running = true;
 
-	if (RUN_SEQUENTIAL) // Launch one thread that runs everything sequential
+	
+	int nrOfThreads = NUM_SWAP_BUFFERS;
+	
+	for (int i = 0; i < nrOfThreads; i++)
 	{
-		this->t_sequential = new std::thread([&](Renderer* rnd) { rnd->tm_update(); }, this);
+		this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrame(i); }, this);
+	//	this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrameDebug(i); }, this);
+		while (!this->threadCreated){} 		//Make sure that the thread initialized before proceeding.
+		this->threadCreated = false;		//Reset before the next loop.
 	}
-	else // Launch parallel threads
-	{
-		int nrOfThreads = NUM_SWAP_BUFFERS;
-		if (RUN_ONE_THREAD)
-		{
-			nrOfThreads = 1;
-		}
-
-		for (int i = 0; i < nrOfThreads; i++)
-		{
-			this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrame(i); }, this);
-		//	this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrameDebug(i); }, this);
-			while (!this->threadCreated){} 		//Make sure that the thread initialized before proceeding.
-			this->threadCreated = false;		//Reset before the next loop.
-		}
-		this->t_copyData = new std::thread([&](Renderer* rnd) { rnd->tm_copy(); }, this);
-		this->t_update = new std::thread([&](Renderer* rnd) { rnd->tm_runCS(); }, this);
-	}
+	this->t_copyData = new std::thread([&](Renderer* rnd) { rnd->tm_copy(); }, this);
+	this->t_update = new std::thread([&](Renderer* rnd) { rnd->tm_runCS(); }, this);
+	
 }
 
 void Renderer::tm_runFrame(const unsigned int iD)
@@ -222,8 +210,8 @@ void Renderer::tm_runFrame(const unsigned int iD)
 		if (myTurn[iD] && this->frameReadyToClear[iD])
 		{
 			myTurn[iD] = false;
-			//WaitForGpu(iD); //Make sure that the last frame this iD recorded has finnished it's present. STILL NEEDED?
-			printToDebug("Entered loop: ", (int)iD);
+
+			//printToDebug("Entered loop: ", (int)iD);
 
 			//Reset before the new frame
 			m_graphicsCmdAllocator[iD]()->Reset();
@@ -246,7 +234,9 @@ void Renderer::tm_runFrame(const unsigned int iD)
 			handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + backBufferIndex);
 			handlePrev.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + prevIndex);
 
-			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle);
+			//Legacy stuff, could be done with only one. Kept so that we could clear another
+			//"backbuffers texture".
+			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle); 
 			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handle);
 
 			if (RUN_TIME_STAMPS)
@@ -255,11 +245,11 @@ void Renderer::tm_runFrame(const unsigned int iD)
 				this->frameTimer.start(this->m_graphicsCmdList[iD](), 0); // Start frame timer
 
 				this->frameTimer.start(this->m_graphicsCmdList[iD](), 1);
-				this->CopyTranslation(m_graphicsCmdList[iD]());				//Copy Translation  //REMOVE?
+				this->ClearTexture(m_graphicsCmdList[iD](), iD);				//Copy Translation  //REMOVE?
 				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 1);
 
 				this->frameTimer.start(this->m_graphicsCmdList[iD](), 2);
-				this->DrawShaders(m_graphicsCmdList[iD](), iD);				//Clear texture and draw
+				this->DrawShaders(m_graphicsCmdList[iD]());				//Clear texture and draw
 				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 2);
 
 				this->frameTimer.start(this->m_graphicsCmdList[iD](), 3);
@@ -268,7 +258,7 @@ void Renderer::tm_runFrame(const unsigned int iD)
 
 				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 0); //Stop frame timer
 
-				//Vad gör detta hittar ej på nätet?
+
 				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 0);
 				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 1);
 				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 2);
@@ -280,133 +270,16 @@ void Renderer::tm_runFrame(const unsigned int iD)
 			}
 			else
 			{
-				this->CopyTranslation(m_graphicsCmdList[iD]());
-				this->DrawShaders(m_graphicsCmdList[iD](), iD);
+				this->ClearTexture(m_graphicsCmdList[iD](), iD);
+				this->DrawShaders(m_graphicsCmdList[iD]());
 				this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
 				this->CopyTexture(m_graphicsCmdList[iD]());
 				this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
 			}
 
 			this->PresentFrame(m_graphicsCmdList[iD](), iD);
-			logicPerDraw = 0;
 		}
 
-		if (RUN_SEQUENTIAL == 1)
-			break;
-	}
-}
-
-void Renderer::tm_runFrameDebug(const unsigned int iD)
-{
-	//Let the main thread know that the thread has finished it's initialization.
-	this->threadCreated = true;
-
-	//printToDebug("ID:", (int)iD); //Debug print
-
-	while (this->running)
-	{
-		// Stall the thread until the main thread says it's okay to continue.
-		if (iD == this->backBufferIndex && this->frameReadyToClear[iD])
-		{
-
-			//WaitForGpu(iD); //Make sure that the last frame this iD recorded has finnished it's present. STILL NEEDED?
-			//Init debug step counter
-			int debugStep = 0;
-			//printToDebug("Thread: ", (int)iD, " Step: ", debugStep++); // Step 0
-
-			/*for (int i = 0; i < iD; i++)
-			{
-				printToDebug("	");
-			}
-			printToDebug("ID:	", (int)iD);*/
-
-			//Reset before the new frame
-			m_graphicsCmdAllocator[iD]()->Reset();
-			m_graphicsCmdList[iD]()->Reset(m_graphicsCmdAllocator[iD](), nullptr);
-
-			//Set root signature
-			m_graphicsCmdList[iD]()->SetComputeRootSignature(rootSignature);
-			ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
-			m_graphicsCmdList[iD]()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
-			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(0, this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-			
-			D3D12_GPU_DESCRIPTOR_HANDLE handle = this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
-			D3D12_GPU_DESCRIPTOR_HANDLE handlePrev = this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
-
-			int prevIndex = 0;
-			if (backBufferIndex != 0)
-				prevIndex = (backBufferIndex - 1);
-			else
-				prevIndex = NUM_SWAP_BUFFERS - 1;
-			handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + backBufferIndex);
-			handlePrev.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + prevIndex);
-
-			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle);
-			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handle);
-
-			//printToDebug("Thread: ", (int)iD, " Step: ", debugStep++); //Step 1
-
-
-			if (RUN_TIME_STAMPS)
-			{
-
-				this->frameTimer.start(this->m_graphicsCmdList[iD](), 0); // Start frame timer
-
-				this->frameTimer.start(this->m_graphicsCmdList[iD](), 1); 
-				this->CopyTranslation(m_graphicsCmdList[iD]());				//Copy Translation  //REMOVE?
-				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 1);
-				
-				this->frameTimer.start(this->m_graphicsCmdList[iD](), 2);
-				this->DrawShaders(m_graphicsCmdList[iD](), iD);				//Clear texture and draw
-				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 2);
-
-				this->frameTimer.start(this->m_graphicsCmdList[iD](), 3);
-				this->CopyTexture(m_graphicsCmdList[iD]());					//Copy the new texture to the backbuffer
-				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 3);
-
-				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 0); //Stop frame timer
-
-				//Vad gör detta hittar ej på nätet?
-				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 0);
-				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 1);
-				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 2);
-				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 3);
-
-				this->frameTimer.stop(this->m_graphicsCmdList[prevIndex](), 4);
-				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 4);
-				this->frameTimer.start(this->m_graphicsCmdList[iD](), 4);
-			}
-			else
-			{
-				this->CopyTranslation(m_graphicsCmdList[iD]());
-				this->DrawShaders(m_graphicsCmdList[iD](), iD);
-				//printToDebug("Thread: ", (int)iD, " Step: ", debugStep++); // Step 2
-				this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
-				this->CopyTexture(m_graphicsCmdList[iD]());
-				//printToDebug("Thread: ", (int)iD, " Step: ", debugStep++); // Step 3
-				this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
-			}
-
-			//printToDebug("Thread: ", (int)iD, " Step: ", debugStep++); // Step 4
-			this->PresentFrame(m_graphicsCmdList[iD](), iD);
-		//	while (!this->frameReadyToClear[iD] && this->running) {}
-		//	Sleep(16);
-		//	Sleep(16);
-
-		//	printToDebug("Thread: ", (int)iD, " Step: ", debugStep++);  // Step 6
-			//this->currThreadWorking++;
-			//this->currThreadWorking %= NUM_SWAP_BUFFERS;
-			//this->currThreadWorking = this->swapChain4->GetCurrentBackBufferIndex();
-
-			//WaitForGpu(iD);
-			//m_graphicsCmdAllocator[iD]()->Reset();
-			logicPerDraw = 0;
-			//printToDebug("Thread Sign Out: ", (int)iD, " Step: ", debugStep++); // Step 5
-		}
-
-		if (RUN_SEQUENTIAL == 1)
-			break;
 	}
 }
 
@@ -420,7 +293,17 @@ void Renderer::tm_copy()
 		
 		//Gather keyboard input and upload it to the GPU.
 		this->KeyboardInput();
-		this->KeyboardUpload();
+
+		if (RUN_TIME_STAMPS)
+		{
+			copyTimer.start(m_copyCmdList(), 0);
+			this->KeyboardUpload();
+			copyTimer.stop(m_copyCmdList(), 0);
+
+			copyTimer.resolveQueryToCPU(m_copyCmdList(), 0);
+		}
+		else
+			this->KeyboardUpload();
 
 		//Close the list to prepare it for execution.
 		m_copyCmdList()->Close();
@@ -441,8 +324,6 @@ void Renderer::tm_copy()
 		}
 		if (RUN_TIME_STAMPS)
 			this->timerPrint();
-		if (RUN_SEQUENTIAL == 1)
-			break;
 	}
 }
 
@@ -463,10 +344,7 @@ void Renderer::tm_runCS()
 {
 	while (this->running)
 	{
-		//WaitForGpu(m_computeCmdQueue());
 		this->WaitForCompute();
-		
-		//	WaitForGpu(m_graphicsCmdQueue());
 
 		//Command list allocators can only be reset when the associated command lists have
 		//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
@@ -506,11 +384,6 @@ void Renderer::tm_runCS()
 			this->Collision();
 		}
 
-		
-
-		// Testing shader
-		/*m_computeCmdList()->SetPipelineState(m_computeState.mp_pipelineState);
-		m_computeCmdList()->Dispatch(3, 1, 1);*/
 
 		m_computeCmdList()->Close();
 
@@ -519,11 +392,6 @@ void Renderer::tm_runCS()
 		m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
 		this->logicPerDraw++;
-
-		this->Fence();
-
-		if (RUN_SEQUENTIAL == 1)
-			break;
 	}
 }
 
@@ -532,19 +400,29 @@ void Renderer::tm_main()
 	if (present[this->backBufferIndex])
 	{
 		this->prevBackBuff = this->backBufferIndex;
-		printToDebug("Presenting: ", this->prevBackBuff);
+		//printToDebug("Presenting: ", this->prevBackBuff);
 		swapChain4->Present(0, 0);
+		this->backBufferIndex = this->swapChain4->GetCurrentBackBufferIndex();
+		this->myTurn[backBufferIndex] = true;
 		WaitForGpuMain(this->prevBackBuff);
 
 		cpuTime = clock();
-		float timeToPrint = cpuTime - cpuTimePrev;
+		float timeToPrint = (float)cpuTime - (float)cpuTimePrev;
+		this->savedTime[this->savedSlot] = timeToPrint;
+		this->savedSlot %= 64;
 		//printToDebug("\n");
 		//printToDebug((int)prev);
 		//printToDebug("	Frametime: ", timeToPrint);
-		cpuTimePrev = cpuTime;
+		cpuTimePrev = cpuTime; 
+		if (RUN_LOGICCOUNTER)
+		{
+			int privateLogic = (int)this->logicPerDraw;
+			printToDebug(privateLogic);
+			printToDebug("\n");
+		}
+		logicPerDraw = 0;
 		
-		this->backBufferIndex = this->swapChain4->GetCurrentBackBufferIndex();
-
+		
 		this->mtxFrameReadyToClear[this->prevBackBuff].lock();
 		this->frameReadyToClear[this->prevBackBuff] = true;
 		this->mtxFrameReadyToClear[this->prevBackBuff].unlock();
@@ -552,7 +430,7 @@ void Renderer::tm_main()
 		this->mtxPresent[this->prevBackBuff].lock();
 		present[this->prevBackBuff] = false;
 		this->mtxPresent[this->prevBackBuff].unlock();
-		this->myTurn[backBufferIndex] = true;
+		
 	}
 }
 
@@ -570,21 +448,22 @@ void Renderer::timerPrint()
 	D3D12::GPUTimestampPair test = this->frameTimer.getTimestampPair(4);
 	D3D12::GPUTimestampPair timerTranslate = this->computeTimer.getTimestampPair(4);
 	D3D12::GPUTimestampPair timerCollsion = this->computeTimer.getTimestampPair(5);
+	D3D12::GPUTimestampPair timerCopyQueue = this->copyTimer.getTimestampPair(0);
 
 	UINT64 dt = timerFrame.Stop - timerFrame.Start;
 	float timeInMs = dt * timestampToMs;
 
-	printToDebug("	___DRAW___	");
-	//printToDebug("\n");
-	printToDebug("	FillList:	");
-	printToDebug(timeInMs);
-	//printToDebug("\n");
+	printToDebug("___DRAW___	");
+	////printToDebug("\n");
+	//printToDebug("	FillList:	");
+	//printToDebug(timeInMs);
+	////printToDebug("\n");
 
 	//dt = timerCopyTran.Stop - timerCopyTran.Start;
 	//timeInMs = dt * timestampToMs;
-	//printToDebug("	Copy Translation:	");
+	//printToDebug("	Clear Texture:	");
 	//printToDebug(timeInMs);
-	//printToDebug("\n");
+	////printToDebug("\n");
 
 	dt = timerDraw.Stop - timerDraw.Start;
 	timeInMs = dt * timestampToMs;
@@ -592,11 +471,11 @@ void Renderer::timerPrint()
 	printToDebug(timeInMs);
 	//printToDebug("\n");
 
-	dt = timerCopyTex.Stop - timerCopyTex.Start;
-	timeInMs = dt * timestampToMs;
-	printToDebug("	Copy Texture:	");
-	printToDebug(timeInMs);
-	//printToDebug("\n");
+	//dt = timerCopyTex.Stop - timerCopyTex.Start;
+	//timeInMs = dt * timestampToMs;
+	//printToDebug("	Copy Texture:	");
+	//printToDebug(timeInMs);
+	////printToDebug("\n");
 
 
 	printToDebug("	___LOGIC___	");
@@ -613,10 +492,19 @@ void Renderer::timerPrint()
 	printToDebug(timeInMs);
 	//printToDebug("\n");
 
-	dt = test.Stop - test.Start;
-	timeInMs = dt * timestampToMs;
-	printToDebug("	test:	");
-	printToDebug(timeInMs);
+	//dt = test.Stop - test.Start;
+	//timeInMs = dt * timestampToMs;
+	//printToDebug("	test:	");
+	//printToDebug(timeInMs);
+
+
+	//printToDebug("	___COPY___	");
+	////printToDebug("\n");
+	//dt = timerCopyQueue.Stop - timerCopyQueue.Start;
+	//timeInMs = dt * timestampToMs;
+	//printToDebug("	Copy queue:	");
+	//printToDebug(timeInMs);
+	////printToDebug("\n");
 
 	printToDebug("\n");
 }
@@ -647,10 +535,6 @@ void Renderer::SetResourceUavBarrier(ID3D12GraphicsCommandList* commandList, ID3
 
 void Renderer::WaitForGpu(const int iD)
 {
-	//WAITING FOR EACH FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-//This is code implemented as such for simplicity. The cpu could for example be used
-//for other tasks to prepare the next frame while the current one is being rendered.
-
 //Signal and increment the fence value.
 	const UINT64 fence = fenceValue;
 	this->m_graphicsCmdQueue()->Signal(this->fence[iD], fence);
@@ -666,10 +550,6 @@ void Renderer::WaitForGpu(const int iD)
 
 void Renderer::WaitForGpuMain(const int iD)
 {
-	//WAITING FOR EACH FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-//This is code implemented as such for simplicity. The cpu could for example be used
-//for other tasks to prepare the next frame while the current one is being rendered.
-
 //Signal and increment the fence value.
 	const UINT64 fence = fenceValue;
 	this->m_graphicsCmdQueue()->Signal(this->mainFence[iD], fence);
@@ -726,7 +606,7 @@ void Renderer::CreateDirect3DDevice()
 	IDXGIAdapter1*	adapter = nullptr;
 	//First a factory is created to iterate through the adapters available.
 	CreateDXGIFactory(IID_PPV_ARGS(&factory));
-	for (UINT adapterIndex = 0;; ++adapterIndex)
+	for (UINT adapterIndex = 1;; ++adapterIndex)
 	{
 		adapter = nullptr;
 		if (DXGI_ERROR_NOT_FOUND == factory->EnumAdapters1(adapterIndex, &adapter))
@@ -760,6 +640,7 @@ void Renderer::CreateDirect3DDevice()
 
 void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 {
+	// this is a quick fix to allow timestamps on each queue
 	D3D12_COMMAND_LIST_TYPE cmdCompute =
 		RUN_TIME_STAMPS ? D3D12_COMMAND_LIST_TYPE_DIRECT : D3D12_COMMAND_LIST_TYPE_COMPUTE;
 	D3D12_COMMAND_LIST_TYPE cmdCopy = 
@@ -886,9 +767,6 @@ void Renderer::CreateRenderTargets()
 
 void Renderer::CreateShadersAndPiplelineState()
 {
-	m_computeState.SetComputeShader("ComputeShader.hlsl");
-	m_computeState.Compile(device4, rootSignature);
-
 	m_computeStateKeyboard.SetComputeShader("ComputeShaderKeyboard.hlsl");
 	m_computeStateKeyboard.Compile(device4, rootSignature);
 
@@ -997,6 +875,7 @@ void Renderer::CreateUnorderedAccessResources()
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuAddress =
 		m_uavHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
+	// Legacy buffer that was keept to not have to change the index in hte project
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc0 = {};
 	desc0.Format = DXGI_FORMAT_R32_FLOAT;
 	desc0.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -1023,7 +902,7 @@ void Renderer::CreateUnorderedAccessResources()
 	desc2.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
 	desc2.Buffer.FirstElement = 0;
-	desc2.Buffer.NumElements = 256;
+	desc2.Buffer.NumElements = 256 * OBJECT_MULTIPLIER;
 	desc2.Buffer.StructureByteStride = sizeof(float) * 3;
 	desc2.Buffer.CounterOffsetInBytes = 0;
 	desc2.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
@@ -1034,7 +913,7 @@ void Renderer::CreateUnorderedAccessResources()
 	desc3.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 		
 	desc3.Buffer.FirstElement = 0;
-	desc3.Buffer.NumElements = 256;
+	desc3.Buffer.NumElements = 256 * OBJECT_MULTIPLIER;
 	desc3.Buffer.StructureByteStride = sizeof(float) * 3;
 	desc3.Buffer.CounterOffsetInBytes = 0;
 	desc3.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
@@ -1070,8 +949,8 @@ void Renderer::CreateUnorderedAccessResources()
 	const UINT byteWidthArray[] = {
 		32,
 		1024,
-		4096,
-		4096,
+		4096 * OBJECT_MULTIPLIER,
+		4096 * OBJECT_MULTIPLIER,
 		2048,
 		2048,
 	};
@@ -1110,7 +989,7 @@ void Renderer::CreateUnorderedAccessResources()
 
 		cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
-	m_uavArray[0]()->SetName(L"Testing Buffer");
+	m_uavArray[0]()->SetName(L"Legacy Buffer");
 	m_uavArray[1]()->SetName(L"Keyboard Buffer");
 	m_uavArray[2]()->SetName(L"Position Buffer");
 	m_uavArray[3]()->SetName(L"Direction Buffer");
@@ -1147,20 +1026,9 @@ void Renderer::CreateUnorderedAccessResources()
 			IID_PPV_ARGS(&m_texture[i])
 		);
 
-		//// Describe and create a SRV for the texture.
-		//D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		//srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		//srvDesc.Format = texDesc.Format;
-		//srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		//srvDesc.Texture2D.MipLevels = 1;
-		//device4->CreateShaderResourceView(m_texture, &srvDesc, m_srvHeap.mp_descriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-
 		D3D12_UNORDERED_ACCESS_VIEW_DESC description = {};
 		description.Format = texDesc.Format;
 		description.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		//description.Texture2D.MipSlice = 1;
-		//description.Texture2D.PlaneSlice = 1;
 
 		device4->CreateUnorderedAccessView(m_texture[i], nullptr, &description, cpuAddress);
 		cpuAddress.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -1170,14 +1038,13 @@ void Renderer::CreateUnorderedAccessResources()
 void Renderer::KeyboardInput()
 {
 	// Update keyboard
-	//if (keyboard->readKeyboard())
 	keyboard->readKeyboard();
 }
 
 void Renderer::KeyboardUpload()
 {
 	this->SetResourceUavBarrier(m_copyCmdList(), m_uavArray[1]());
-	m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList());
+	m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList(), sizeof(this->keyboard->keyBoardInt));
 
 	// Dowload the position data from the GPU, this is to see the players state with the z-value
 	// We dowload alot but we only need 1 float, this is to stress the system
@@ -1195,7 +1062,7 @@ void Renderer::Translate()
 {
 	// Moves the objects
 	m_computeCmdList()->SetPipelineState(m_computeStateTranslation.mp_pipelineState);
-	m_computeCmdList()->Dispatch(256, 1, 1);
+	m_computeCmdList()->Dispatch(256 * OBJECT_MULTIPLIER, 1, 1);
 	// Moves the bullets
 	m_computeCmdList()->SetPipelineState(m_computeStateBulletTranslation.mp_pipelineState);
 	m_computeCmdList()->Dispatch(128, 1, 1);
@@ -1205,30 +1072,24 @@ void Renderer::Collision()
 {
 	// Shader looking for collision
 	m_computeCmdList()->SetPipelineState(m_computeStateCollision.mp_pipelineState);
-	m_computeCmdList()->Dispatch(256, 1, 1);
+	m_computeCmdList()->Dispatch(256 * OBJECT_MULTIPLIER, 1, 1);
 }
 
-void Renderer::Fence()
+void Renderer::ClearTexture(ID3D12GraphicsCommandList * cmdList, const int iD)
 {
-//	WaitForGpu(m_computeCmdQueue());
-//	WaitForGpu(m_graphicsCmdQueue());
+	// Clear Texture
+	cmdList->SetPipelineState(m_computeStateClear.mp_pipelineState);
+	cmdList->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
+	this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
 }
 
-void Renderer::CopyTranslation(ID3D12GraphicsCommandList * cmdList)
-{
-}
-
-void Renderer::DrawShaders(ID3D12GraphicsCommandList * cmdList, const int iD)
+void Renderer::DrawShaders(ID3D12GraphicsCommandList * cmdList)
 {
 	float* data = (float*)m_uavArray[2].GetData();
 
-	// Clear Texture
-	m_graphicsCmdList[iD]()->SetPipelineState(m_computeStateClear.mp_pipelineState);
-	m_graphicsCmdList[iD]()->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
-	this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
 	//Draw astrooids
 	cmdList->SetPipelineState(m_computeStateDraw.mp_pipelineState);
-	cmdList->Dispatch(1, 1, 1);
+	cmdList->Dispatch(256 * OBJECT_MULTIPLIER, 1, 1);
 	//Draw bullets
 	cmdList->SetPipelineState(m_computeStateBullet.mp_pipelineState);
 	cmdList->Dispatch(1, 1, 1);
@@ -1265,7 +1126,7 @@ void Renderer::PresentFrame(ID3D12GraphicsCommandList* cmdList, const int iD)
 	ID3D12CommandList* listsToExecute[] = { cmdList };
 	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 	
-	printToDebug("Executed CmdList: ", iD);
+	//printToDebug("Executed CmdList: ", iD);
 	this->mtxFrameReadyToClear[iD].lock();
 	this->frameReadyToClear[iD] = false;
 	this->mtxFrameReadyToClear[iD].unlock();

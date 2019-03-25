@@ -20,16 +20,13 @@
 #include <mutex>
 
 
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 800
+#define SCREEN_WIDTH 1600
+#define SCREEN_HEIGHT 900
 
 #define NUM_SWAP_BUFFERS 4
 #define NUM_UAV_BUFFERS 6
 
-#define RUN_COMPUTESHADERS 1
-#define RUN_THREADS 1
-#define RUN_ONE_THREAD 0
-#define RUN_SEQUENTIAL 0
+#define OBJECT_MULTIPLIER 8
 
 #define RUN_TIME_STAMPS false
 #define RUN_LOGICCOUNTER false
@@ -46,7 +43,6 @@ public:
 	void initThreads();
 
 	void tm_runFrame(const unsigned int iD);
-	void tm_runFrameDebug(const unsigned int iD);
 	void tm_copy();
 	void tm_update();
 	void tm_runCS();
@@ -62,9 +58,11 @@ private:
 	D3D12::D3D12Timer copyTimer;
 	void timerPrint();
 	unsigned int logicPerDraw = 0;
-	long int cpuTime = 0;
-	long int cpuTimePrev = 0;
+	long cpuTime = 0;
+	long cpuTimePrev = 0;
 
+	float savedTime[64];
+	int savedSlot;
 
 	unsigned int lastPresent = NUM_SWAP_BUFFERS + 1;
 
@@ -159,9 +157,8 @@ private:
 	void KeyboardShader();
 	void Translate();
 	void Collision();
-	void Fence();
-	void CopyTranslation(ID3D12GraphicsCommandList* cmdList);
-	void DrawShaders(ID3D12GraphicsCommandList* cmdList, const int iD);
+	void ClearTexture(ID3D12GraphicsCommandList* cmdList, const int iD);
+	void DrawShaders(ID3D12GraphicsCommandList* cmdList);
 	void CopyTexture(ID3D12GraphicsCommandList* cmdList);
 	void PresentFrame(ID3D12GraphicsCommandList* cmdList, const int iD);
 };

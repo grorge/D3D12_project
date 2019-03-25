@@ -1,4 +1,4 @@
-#define NROFOBJECTS 256
+#define NROFOBJECTS 256 * 8
 #define RADIUS 10.0f
 
 RWTexture2D<float4> textureOut : register(u7);
@@ -10,9 +10,10 @@ struct BufTypeTrans
 
 RWStructuredBuffer<float3> BufferPosition : register(u2);
 
-#define BLOCK_WIDTH 256
+#define BLOCK_WIDTH 256 * 8
 
-[numthreads(BLOCK_WIDTH, 1, 1)]
+//[numthreads(BLOCK_WIDTH, 1, 1)]
+[numthreads(1, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
 	float index = DTid.x + DTid.y * BLOCK_WIDTH;

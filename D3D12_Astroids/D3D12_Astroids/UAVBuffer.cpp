@@ -51,11 +51,11 @@ ID3D12Resource * UAVBuffer::operator()()
 	return m_resource.mp_resource;
 }
 
-bool UAVBuffer::UploadData(void * pData, ID3D12GraphicsCommandList* pCmdList)
+bool UAVBuffer::UploadData(void * pData, ID3D12GraphicsCommandList* pCmdList, int size)
 {
 	if (!m_writeAccess) return false;
 
-	m_upload.SetData(pData);
+	m_upload.SetData(pData, size);
 
 	pCmdList->CopyResource(
 		m_resource.mp_resource, 

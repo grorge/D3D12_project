@@ -15,7 +15,7 @@ public:
 		const D3D12_RESOURCE_STATES state,
 		const D3D12_RESOURCE_FLAGS resourceFlag) override;
 
-	void SetData(const void* data);
+	void SetData(const void* data, int size);
 
 private:
 };

@@ -21,7 +21,9 @@ void UploadResource::Initialize(
 	const D3D12_RESOURCE_STATES state,
 	const D3D12_RESOURCE_FLAGS resourceFlag)
 {
-	m_byteWidth = byteWidth;
+	int temp = (byteWidth / D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT) +1;
+	
+	m_byteWidth = temp * D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 	m_currentState = state;
 
 	{
@@ -57,7 +59,7 @@ void UploadResource::Initialize(
 	}
 }
 
-void UploadResource::SetData(const void * data)
+void UploadResource::SetData(const void * data, int size)
 {
 	void* dataBegin = nullptr;
 
@@ -65,6 +67,6 @@ void UploadResource::SetData(const void * data)
 	D3D12_RANGE write = { 0, m_byteWidth }; // Do Write
 
 	mp_resource->Map(0, &read, &dataBegin);
-	memcpy(dataBegin, data, m_byteWidth);
+	memcpy(dataBegin, data, size);
 	mp_resource->Unmap(0, &write);
 }
