@@ -12,6 +12,11 @@ Renderer::Renderer()
 		this->myTurn[i] = false;
 	}
 	myTurn[0] = true;
+	this->savedSlot = 0;
+	for (int i = 0; i < 64; i++)
+	{
+		this->savedTime[i] = 0.0f;
+	}
 }
 
 Renderer::~Renderer()
@@ -413,7 +418,7 @@ void Renderer::tm_main()
 		float timeToPrint = (float)cpuTime - (float)cpuTimePrev;
 		this->savedTime[this->savedSlot] = timeToPrint;
 		this->savedSlot++;
-		this->savedSlot %= 65;
+		this->savedSlot = savedSlot % 64;
 		//printToDebug("\n");
 		//printToDebug((int)prev);
 		//printToDebug("	Frametime: ", timeToPrint);
