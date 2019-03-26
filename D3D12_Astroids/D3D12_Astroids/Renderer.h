@@ -26,7 +26,7 @@
 #define NUM_SWAP_BUFFERS 4
 #define NUM_UAV_BUFFERS 6
 
-#define OBJECT_MULTIPLIER 8
+#define OBJECT_MULTIPLIER 128
 
 #define RUN_TIME_STAMPS false
 #define RUN_LOGICCOUNTER false
@@ -92,6 +92,9 @@ private:
 	UINT backBufferIndex;
 
 	std::thread* t_sequential;
+
+	bool logic = false;
+	bool input = false;
 
 	std::mutex mtxPresent[NUM_SWAP_BUFFERS];
 	std::mutex mtxFrameReadyToClear[NUM_SWAP_BUFFERS];

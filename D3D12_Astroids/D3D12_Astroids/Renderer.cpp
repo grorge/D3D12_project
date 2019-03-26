@@ -295,43 +295,47 @@ void Renderer::tm_copy()
 {
 	while (this->running)
 	{
-		//Reset the Copy command allocator and command list for the next pass.
-		m_copyCmdAllocator()->Reset();
-		m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
-		
-		//Gather keyboard input and upload it to the GPU.
-		this->KeyboardInput();
-
-		if (RUN_TIME_STAMPS)
+		if (!input)
 		{
-			copyTimer.start(m_copyCmdList(), 0);
-			this->KeyboardUpload();
-			copyTimer.stop(m_copyCmdList(), 0);
+			//Reset the Copy command allocator and command list for the next pass.
+			m_copyCmdAllocator()->Reset();
+			m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
-			copyTimer.resolveQueryToCPU(m_copyCmdList(), 0);
+			//Gather keyboard input and upload it to the GPU.
+			this->KeyboardInput();
+
+			if (RUN_TIME_STAMPS)
+			{
+				copyTimer.start(m_copyCmdList(), 0);
+				this->KeyboardUpload();
+				copyTimer.stop(m_copyCmdList(), 0);
+
+				copyTimer.resolveQueryToCPU(m_copyCmdList(), 0);
+			}
+			else
+				this->KeyboardUpload();
+
+			//Close the list to prepare it for execution.
+			m_copyCmdList()->Close();
+
+			//Execute the command list.
+			ID3D12CommandList* listsToExecute0[] = { m_copyCmdList() };
+			m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute0), listsToExecute0);
+
+			//Wait for the Copy queue to finish execution of the command list.
+			this->WaitForCopy();
+
+			//Debug prints
+			if (RUN_LOGICCOUNTER)
+			{
+				int privateLogic = (int)this->logicPerDraw;
+				printToDebug(privateLogic);
+				printToDebug("\n");
+			}
+			if (RUN_TIME_STAMPS)
+				this->timerPrint();
+			this->input = true;
 		}
-		else
-			this->KeyboardUpload();
-
-		//Close the list to prepare it for execution.
-		m_copyCmdList()->Close();
-
-		//Execute the command list.
-		ID3D12CommandList* listsToExecute0[] = { m_copyCmdList() };
-		m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute0), listsToExecute0);
-
-		//Wait for the Copy queue to finish execution of the command list.
-		this->WaitForCopy();
-
-		//Debug prints
-		if (RUN_LOGICCOUNTER)
-		{
-			int privateLogic = (int)this->logicPerDraw;
-			printToDebug(privateLogic);
-			printToDebug("\n");
-		}
-		if (RUN_TIME_STAMPS)
-			this->timerPrint();
 	}
 }
 
@@ -352,54 +356,58 @@ void Renderer::tm_runCS()
 {
 	while (this->running)
 	{
-		this->WaitForCompute();
-
-		//Command list allocators can only be reset when the associated command lists have
-		//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-		m_computeCmdAllocator()->Reset();
-		m_computeCmdList()->Reset(m_computeCmdAllocator(), nullptr);
-
-		//Set root signature
-		m_computeCmdList()->SetComputeRootSignature(rootSignature);
-
-		ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
-		m_computeCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
-
-
-		// Set Root Argument, Index 1
-		m_computeCmdList()->SetComputeRootDescriptorTable(
-			0,
-			m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-		this->KeyboardShader();
-
-		if (RUN_TIME_STAMPS)
+		if (!this->logic)
 		{
-			this->computeTimer.start(this->m_computeCmdList(), 4);
-			this->Translate();
-			this->computeTimer.stop(this->m_computeCmdList(), 4);
+			this->WaitForCompute();
 
-			this->computeTimer.start(this->m_computeCmdList(), 5);
-			this->Collision();
-			this->computeTimer.stop(this->m_computeCmdList(), 5);
+			//Command list allocators can only be reset when the associated command lists have
+			//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
+			m_computeCmdAllocator()->Reset();
+			m_computeCmdList()->Reset(m_computeCmdAllocator(), nullptr);
 
-			this->computeTimer.resolveQueryToCPU(this->m_computeCmdList(), 4);
-			this->computeTimer.resolveQueryToCPU(this->m_computeCmdList(), 5);
+			//Set root signature
+			m_computeCmdList()->SetComputeRootSignature(rootSignature);
+
+			ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
+			m_computeCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+
+
+			// Set Root Argument, Index 1
+			m_computeCmdList()->SetComputeRootDescriptorTable(
+				0,
+				m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+			this->KeyboardShader();
+
+			if (RUN_TIME_STAMPS)
+			{
+				this->computeTimer.start(this->m_computeCmdList(), 4);
+				this->Translate();
+				this->computeTimer.stop(this->m_computeCmdList(), 4);
+
+				this->computeTimer.start(this->m_computeCmdList(), 5);
+				this->Collision();
+				this->computeTimer.stop(this->m_computeCmdList(), 5);
+
+				this->computeTimer.resolveQueryToCPU(this->m_computeCmdList(), 4);
+				this->computeTimer.resolveQueryToCPU(this->m_computeCmdList(), 5);
+			}
+			else
+			{
+				this->Translate();
+				this->Collision();
+			}
+
+
+			m_computeCmdList()->Close();
+
+			//Execute the command list.
+			ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
+			m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+			this->logicPerDraw++;
+			this->logic = true;
 		}
-		else
-		{
-			this->Translate();
-			this->Collision();
-		}
-
-
-		m_computeCmdList()->Close();
-
-		//Execute the command list.
-		ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
-		m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
-
-		this->logicPerDraw++;
 	}
 }
 
@@ -407,6 +415,8 @@ void Renderer::tm_main()
 {
 	if (present[this->backBufferIndex])
 	{
+		this->logic = false;
+		this->input = false;
 		this->prevBackBuff = this->backBufferIndex;
 		//printToDebug("Presenting: ", this->prevBackBuff);
 		swapChain4->Present(0, 0);
@@ -439,7 +449,6 @@ void Renderer::tm_main()
 		this->mtxPresent[this->prevBackBuff].lock();
 		present[this->prevBackBuff] = false;
 		this->mtxPresent[this->prevBackBuff].unlock();
-		
 	}
 }
 
