@@ -606,7 +606,7 @@ void Renderer::CreateDirect3DDevice()
 	IDXGIAdapter1*	adapter = nullptr;
 	//First a factory is created to iterate through the adapters available.
 	CreateDXGIFactory(IID_PPV_ARGS(&factory));
-	for (UINT adapterIndex = 1;; ++adapterIndex)
+	for (UINT adapterIndex = 0;; ++adapterIndex)
 	{
 		adapter = nullptr;
 		if (DXGI_ERROR_NOT_FOUND == factory->EnumAdapters1(adapterIndex, &adapter))
