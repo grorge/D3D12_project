@@ -413,7 +413,7 @@ void Renderer::tm_main()
 		float timeToPrint = (float)cpuTime - (float)cpuTimePrev;
 		this->savedTime[this->savedSlot] = timeToPrint;
 		this->savedSlot++;
-		this->savedSlot %= 64;
+		this->savedSlot %= 65;
 		//printToDebug("\n");
 		//printToDebug((int)prev);
 		//printToDebug("	Frametime: ", timeToPrint);

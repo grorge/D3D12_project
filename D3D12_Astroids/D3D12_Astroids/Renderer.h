@@ -30,7 +30,7 @@
 
 #define RUN_TIME_STAMPS false
 #define RUN_LOGICCOUNTER false
-#define RUN_SEQUENTIAL true
+#define RUN_SEQUENTIAL false
 class Renderer
 {
 public:
