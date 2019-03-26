@@ -26,9 +26,9 @@
 #define NUM_SWAP_BUFFERS 4
 #define NUM_UAV_BUFFERS 6
 
-#define OBJECT_MULTIPLIER 16
+#define OBJECT_MULTIPLIER 128
 
-#define RUN_TIME_STAMPS false
+#define RUN_TIME_STAMPS true
 #define RUN_LOGICCOUNTER false
 #define RUN_SEQUENTIAL true
 class Renderer

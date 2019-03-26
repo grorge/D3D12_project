@@ -600,7 +600,26 @@ void Renderer::sequentialFrame()
 	ID3D12CommandList* listsToExecute2[] = { m_graphicsCmdList[iD]() };
 	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute2), listsToExecute2);
 
+	this->prevBackBuff = this->backBufferIndex;
+	//printToDebug("Presenting: ", this->prevBackBuff);
 	swapChain4->Present(0, 0);
+	this->backBufferIndex = this->swapChain4->GetCurrentBackBufferIndex();
+	WaitForGpuMain(this->prevBackBuff);
+
+	cpuTime = clock();
+	float timeToPrint = (float)cpuTime - (float)cpuTimePrev;
+	this->savedTime[this->savedSlot] = timeToPrint;
+	this->savedSlot %= 64;
+	//printToDebug("\n");
+	//printToDebug((int)prev);
+	//printToDebug("	Frametime: ", timeToPrint);
+	cpuTimePrev = cpuTime;
+	if (RUN_LOGICCOUNTER)
+	{
+		int privateLogic = (int)this->logicPerDraw;
+		printToDebug(privateLogic);
+		printToDebug("\n");
+	}
 }
 
 void Renderer::timerPrint()
