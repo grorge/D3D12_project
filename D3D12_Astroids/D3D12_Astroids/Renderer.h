@@ -31,6 +31,7 @@
 #define RUN_TIME_STAMPS false
 #define RUN_LOGICCOUNTER false
 #define RUN_SEQUENTIAL false
+
 class Renderer
 {
 public:
@@ -93,8 +94,8 @@ private:
 
 	std::thread* t_sequential;
 
-	bool logic = false;
-	bool input = false;
+	int logic = 0;
+	int input = 0;
 
 	std::mutex mtxPresent[NUM_SWAP_BUFFERS];
 	std::mutex mtxFrameReadyToClear[NUM_SWAP_BUFFERS];

@@ -30,9 +30,19 @@ Renderer::~Renderer()
 		totalTime += this->savedTime[i];
 	}
 	totalTime /= 64;
-	printToDebug("\n -------- FRAMETIME: ");
-	printToDebug(totalTime);
-	printToDebug("\n");
+	if (RUN_SEQUENTIAL)
+	{
+		printToDebug("\n -------- SEQUENCIAL FRAMETIME: ");
+		printToDebug(totalTime);
+		printToDebug("\n");
+	}
+	else
+	{
+		printToDebug("\n -------- PARALLEL FRAMETIME: ");
+		printToDebug(totalTime);
+		printToDebug("\n");
+	}
+
 
 	//this->WaitForGpu(m_computeCmdQueue());
 	WaitForCompute();
@@ -295,7 +305,7 @@ void Renderer::tm_copy()
 {
 	while (this->running)
 	{
-		if (!input)
+		if (this->input < 2)
 		{
 			//Reset the Copy command allocator and command list for the next pass.
 			m_copyCmdAllocator()->Reset();
@@ -334,7 +344,7 @@ void Renderer::tm_copy()
 			}
 			if (RUN_TIME_STAMPS)
 				this->timerPrint();
-			this->input = true;
+			this->input++;
 		}
 	}
 }
@@ -356,7 +366,7 @@ void Renderer::tm_runCS()
 {
 	while (this->running)
 	{
-		if (!this->logic)
+		if (this->logic < 2)
 		{
 			this->WaitForCompute();
 
@@ -406,7 +416,7 @@ void Renderer::tm_runCS()
 			m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
 			this->logicPerDraw++;
-			this->logic = true;
+			this->logic++;
 		}
 	}
 }
@@ -415,8 +425,8 @@ void Renderer::tm_main()
 {
 	if (present[this->backBufferIndex])
 	{
-		this->logic = false;
-		this->input = false;
+		this->logic = 0;
+		this->input = 0;
 		this->prevBackBuff = this->backBufferIndex;
 		//printToDebug("Presenting: ", this->prevBackBuff);
 		swapChain4->Present(0, 0);
