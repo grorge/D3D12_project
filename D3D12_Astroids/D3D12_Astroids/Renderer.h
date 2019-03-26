@@ -26,7 +26,7 @@
 #define NUM_SWAP_BUFFERS 4
 #define NUM_UAV_BUFFERS 6
 
-#define OBJECT_MULTIPLIER 2
+#define OBJECT_MULTIPLIER 16
 
 #define RUN_TIME_STAMPS false
 #define RUN_LOGICCOUNTER false

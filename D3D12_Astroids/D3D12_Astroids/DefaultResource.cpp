@@ -19,7 +19,10 @@ void DefaultResource::Initialize(
 	const D3D12_RESOURCE_STATES state,
 	const D3D12_RESOURCE_FLAGS resourceFlag)
 {
-	m_byteWidth = byteWidth;
+
+	int temp = (byteWidth / D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT) + 1;
+
+	m_byteWidth = temp * D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 	m_currentState = state;
 
 	{

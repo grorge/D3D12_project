@@ -18,7 +18,9 @@ void ReadbackResource::Initialize(
 	const D3D12_RESOURCE_STATES state, 
 	const D3D12_RESOURCE_FLAGS resourceFlag)
 {
-	m_byteWidth = byteWidth;
+	int temp = (byteWidth / D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT) + 1;
+
+	m_byteWidth = temp * D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 	m_currentState = state;
 
 	{
@@ -33,7 +35,7 @@ void ReadbackResource::Initialize(
 		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 
 		/*When set to 0 runtime will use defualt alignment (64KB for buffers)*/
-		desc.Alignment = 0; // D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+		desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT; // D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
 		desc.Width = m_byteWidth;
 		desc.Height = 1;
