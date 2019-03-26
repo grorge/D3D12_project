@@ -412,6 +412,7 @@ void Renderer::tm_main()
 		cpuTime = clock();
 		float timeToPrint = (float)cpuTime - (float)cpuTimePrev;
 		this->savedTime[this->savedSlot] = timeToPrint;
+		this->savedSlot++;
 		this->savedSlot %= 64;
 		//printToDebug("\n");
 		//printToDebug((int)prev);
@@ -609,6 +610,7 @@ void Renderer::sequentialFrame()
 	cpuTime = clock();
 	float timeToPrint = (float)cpuTime - (float)cpuTimePrev;
 	this->savedTime[this->savedSlot] = timeToPrint;
+	this->savedSlot++;
 	this->savedSlot %= 64;
 	//printToDebug("\n");
 	//printToDebug((int)prev);

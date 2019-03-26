@@ -1,5 +1,5 @@
 
-#define NROFOBJECTS 256 * 128
+#define NROFOBJECTS 256 * 8
 #define NROFBULLETS 128
 #define RADIUS 10.0f
 #define RADIUS_BULLET 5.0f
@@ -49,25 +49,29 @@ void main( uint3 DTid : SV_DispatchThreadID )
 		BufferPosition[0].z = -1.0f;
 	}
 
-	for (int i = 1; i < NROFBULLETS; i++)
+	for (int j = 0; j < 1; j++)
 	{
-		if (BufferBulletPosition[i].z != -1.0f ||true)
+		for (int i = 1; i < NROFBULLETS; i++)
 		{
-			float3 thatObj = { BufferBulletPosition[i].x, BufferBulletPosition[i].y, 1.0f };
-
-			float dist = distance(thisObj, thatObj);
-
-			if (dist <= RADIUS_BULLET + RADIUS)
+			if (BufferBulletPosition[i].z != -1.0f || true)
 			{
-				//dir.x *= -1.0f;
-				//dir.y *= -1.0f;
-				dir.z = 0.0f;
+				float3 thatObj = { BufferBulletPosition[i].x, BufferBulletPosition[i].y, 1.0f };
 
-				BufferPosition[index].x = -100.0f; 
-				BufferBulletPosition[i].x = -100.0f;
+				float dist = distance(thisObj, thatObj);
+
+				if (dist <= RADIUS_BULLET + RADIUS)
+				{
+					//dir.x *= -1.0f;
+					//dir.y *= -1.0f;
+					dir.z = 0.0f;
+
+					BufferPosition[index].x = -100.0f;
+					BufferBulletPosition[i].x = -100.0f;
+				}
 			}
 		}
 	}
+	
 
 	BufTypeTrans newDir;
 	newDir.x = dir.x;
