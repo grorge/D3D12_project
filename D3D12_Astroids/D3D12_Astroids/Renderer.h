@@ -26,11 +26,11 @@
 #define NUM_SWAP_BUFFERS 4
 #define NUM_UAV_BUFFERS 6
 
-#define OBJECT_MULTIPLIER 8
+#define OBJECT_MULTIPLIER 2
 
 #define RUN_TIME_STAMPS false
 #define RUN_LOGICCOUNTER false
-
+#define RUN_SEQUENTIAL true
 class Renderer
 {
 public:
@@ -48,6 +48,7 @@ public:
 	void tm_runCS();
 
 	void tm_main();
+	void sequentialFrame();
 
 	bool running = false;
 	ID3D12Device4*				device4 = nullptr;

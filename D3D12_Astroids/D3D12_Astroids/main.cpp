@@ -26,7 +26,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	{
 		ShowWindow(wndHandle, nCmdShow);
 		
-		render->initThreads();
+		if (!RUN_SEQUENTIAL)
+			render->initThreads();
+		else
+			render->running = true;
 		
 		
 		while(WM_QUIT != msg.message && render->running)
@@ -38,11 +41,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 			}
 			else
 			{
-				render->tm_main();
+				if (!RUN_SEQUENTIAL)
+					render->tm_main();
+				else
+					render->sequentialFrame();
 			}
 		}
 
-		render->joinThreads();
+		if (!RUN_SEQUENTIAL)
+			render->joinThreads();
 
 	}
 	

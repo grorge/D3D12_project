@@ -1,5 +1,5 @@
 
-#define NROFOBJECTS 256 * 8
+#define NROFOBJECTS 256 * 2
 #define NROFBULLETS 128
 #define RADIUS 10.0f
 #define RADIUS_BULLET 5.0f

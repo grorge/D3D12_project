@@ -32,12 +32,13 @@ Renderer::~Renderer()
 	//this->WaitForGpu(m_computeCmdQueue());
 	WaitForCompute();
 
-	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
-		delete t_frame[i];
-	delete t_update;
-	delete t_copyData;
-	
-	
+	if (!RUN_SEQUENTIAL)
+	{
+		for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
+			delete t_frame[i];
+		delete t_update;
+		delete t_copyData;
+	}
 
 	SafeRelease(&device4);		
 	SafeRelease(&swapChain4);
@@ -198,6 +199,8 @@ void Renderer::initThreads()
 	this->t_update = new std::thread([&](Renderer* rnd) { rnd->tm_runCS(); }, this);
 	
 }
+
+
 
 void Renderer::tm_runFrame(const unsigned int iD)
 {
@@ -434,6 +437,172 @@ void Renderer::tm_main()
 	}
 }
 
+void Renderer::sequentialFrame()
+{
+	/**************************KEYBOARD**********************************/
+	//Reset the Copy command allocator and command list for the next pass.
+	m_copyCmdAllocator()->Reset();
+	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
+
+	//Gather keyboard input and upload it to the GPU.
+	this->KeyboardInput();
+
+	if (RUN_TIME_STAMPS)
+	{
+		copyTimer.start(m_copyCmdList(), 0);
+		this->KeyboardUpload();
+		copyTimer.stop(m_copyCmdList(), 0);
+
+		copyTimer.resolveQueryToCPU(m_copyCmdList(), 0);
+	}
+	else
+		this->KeyboardUpload();
+
+	//Close the list to prepare it for execution.
+	m_copyCmdList()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute0[] = { m_copyCmdList() };
+	m_copyCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute0), listsToExecute0);
+
+	//Wait for the Copy queue to finish execution of the command list.
+	this->WaitForCopy();
+
+	//Debug prints
+	if (RUN_LOGICCOUNTER)
+	{
+		int privateLogic = (int)this->logicPerDraw;
+		printToDebug(privateLogic);
+		printToDebug("\n");
+	}
+	if (RUN_TIME_STAMPS)
+		this->timerPrint();
+	/*************************END KEYBOARD**************************/
+	/*************************COMPUTE*******************************/
+	//Command list allocators can only be reset when the associated command lists have
+	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
+	m_computeCmdAllocator()->Reset();
+	m_computeCmdList()->Reset(m_computeCmdAllocator(), nullptr);
+
+	//Set root signature
+	m_computeCmdList()->SetComputeRootSignature(rootSignature);
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
+	m_computeCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+
+
+	// Set Root Argument, Index 1
+	m_computeCmdList()->SetComputeRootDescriptorTable(
+		0,
+		m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+	this->KeyboardShader();
+
+	if (RUN_TIME_STAMPS)
+	{
+		this->computeTimer.start(this->m_computeCmdList(), 4);
+		this->Translate();
+		this->computeTimer.stop(this->m_computeCmdList(), 4);
+
+		this->computeTimer.start(this->m_computeCmdList(), 5);
+		this->Collision();
+		this->computeTimer.stop(this->m_computeCmdList(), 5);
+
+		this->computeTimer.resolveQueryToCPU(this->m_computeCmdList(), 4);
+		this->computeTimer.resolveQueryToCPU(this->m_computeCmdList(), 5);
+	}
+	else
+	{
+		this->Translate();
+		this->Collision();
+	}
+
+
+	m_computeCmdList()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute[] = { m_computeCmdList() };
+	m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+	this->WaitForCompute();
+	/*******************************END COMPUTE****************************/
+	/*******************************RENDER*********************************/
+	int iD = swapChain4->GetCurrentBackBufferIndex();
+	//printToDebug("Entered loop: ", (int)iD);
+
+	//Reset before the new frame
+	m_graphicsCmdAllocator[iD]()->Reset();
+	m_graphicsCmdList[iD]()->Reset(m_graphicsCmdAllocator[iD](), nullptr);
+
+	//Set root signature
+	m_graphicsCmdList[iD]()->SetComputeRootSignature(rootSignature);
+	ID3D12DescriptorHeap* descriptorHeaps0[] = { m_uavHeap.mp_descriptorHeap };
+	m_graphicsCmdList[iD]()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps0), descriptorHeaps0);
+	m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(0, this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+	D3D12_GPU_DESCRIPTOR_HANDLE handle = this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE handlePrev = this->m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
+	int prevIndex = 0;
+	if (backBufferIndex != 0)
+		prevIndex = (backBufferIndex - 1);
+	else
+		prevIndex = NUM_SWAP_BUFFERS - 1;
+	handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + backBufferIndex);
+	handlePrev.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + prevIndex);
+
+	//Legacy stuff, could be done with only one. Kept so that we could clear another
+	//"backbuffers texture".
+	m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle);
+	m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handle);
+
+	if (RUN_TIME_STAMPS)
+	{
+
+		this->frameTimer.start(this->m_graphicsCmdList[iD](), 0); // Start frame timer
+
+		this->frameTimer.start(this->m_graphicsCmdList[iD](), 1);
+		this->ClearTexture(m_graphicsCmdList[iD](), iD);				//Copy Translation  //REMOVE?
+		this->frameTimer.stop(this->m_graphicsCmdList[iD](), 1);
+
+		this->frameTimer.start(this->m_graphicsCmdList[iD](), 2);
+		this->DrawShaders(m_graphicsCmdList[iD]());				//Clear texture and draw
+		this->frameTimer.stop(this->m_graphicsCmdList[iD](), 2);
+
+		this->frameTimer.start(this->m_graphicsCmdList[iD](), 3);
+		this->CopyTexture(m_graphicsCmdList[iD]());					//Copy the new texture to the backbuffer
+		this->frameTimer.stop(this->m_graphicsCmdList[iD](), 3);
+
+		this->frameTimer.stop(this->m_graphicsCmdList[iD](), 0); //Stop frame timer
+
+
+		this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 0);
+		this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 1);
+		this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 2);
+		this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 3);
+
+		this->frameTimer.stop(this->m_graphicsCmdList[prevIndex](), 4);
+		this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 4);
+		this->frameTimer.start(this->m_graphicsCmdList[iD](), 4);
+	}
+	else
+	{
+		this->ClearTexture(m_graphicsCmdList[iD](), iD);
+		this->DrawShaders(m_graphicsCmdList[iD]());
+		this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
+		this->CopyTexture(m_graphicsCmdList[iD]());
+		this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
+	}
+
+	//Close the list to prepare it for execution.
+	m_graphicsCmdList[iD]()->Close();
+
+	//Execute the command list.
+	ID3D12CommandList* listsToExecute2[] = { m_graphicsCmdList[iD]() };
+	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute2), listsToExecute2);
+
+	swapChain4->Present(0, 0);
+}
+
 void Renderer::timerPrint()
 {
 	//get time in ms
@@ -606,7 +775,7 @@ void Renderer::CreateDirect3DDevice()
 	IDXGIAdapter1*	adapter = nullptr;
 	//First a factory is created to iterate through the adapters available.
 	CreateDXGIFactory(IID_PPV_ARGS(&factory));
-	for (UINT adapterIndex = 1;; ++adapterIndex)
+	for (UINT adapterIndex = 0;; ++adapterIndex)
 	{
 		adapter = nullptr;
 		if (DXGI_ERROR_NOT_FOUND == factory->EnumAdapters1(adapterIndex, &adapter))
