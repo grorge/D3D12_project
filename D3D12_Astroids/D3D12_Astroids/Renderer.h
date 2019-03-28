@@ -20,18 +20,19 @@
 #include <mutex>
 
 
-#define SCREEN_WIDTH 1600
-#define SCREEN_HEIGHT 900
+#define SCREEN_WIDTH 1600	//Needs to be updated in shaders as well.
+#define SCREEN_HEIGHT 900	//Needs to be updated in shaders as well.
 
 #define NUM_SWAP_BUFFERS 4
 #define NUM_UAV_BUFFERS 6
 
-#define OBJECT_MULTIPLIER 128
+#define OBJECT_MULTIPLIER 8 //Nr of objects = OBJECT_MULTIPLIER * 256
 
-#define RUN_TIME_STAMPS false
-#define RUN_LOGICCOUNTER false
-#define RUN_SEQUENTIAL false
-#define NO_LOGIC_LIMIT false
+#define RUN_TIME_STAMPS false	//Outputs time stamps in output window
+#define RUN_LOGICCOUNTER false	//Outputs the amount of logic between each frame in output window
+#define RUN_SEQUENTIAL false	//Runs the sequential version of the program
+#define NO_LOGIC_LIMIT false	//If false, limits the application to run a maximum of LOGIC_LIMIT logic passes between each frame
+#define LOGIC_LIMIT 1			//The number of times that the logic needs to loop if NO_LOGIC_LIMIT is false
 
 class Renderer
 {
