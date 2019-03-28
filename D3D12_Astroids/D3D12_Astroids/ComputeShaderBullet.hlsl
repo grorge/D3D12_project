@@ -1,12 +1,7 @@
-#define NROFOBJECTS 128
+
 #define RADIUS 5.0f
 
 RWTexture2D<float4> textureOut : register(u7);
-
-struct BufTypeTrans
-{
-	float x, y, z;
-};
 
 RWStructuredBuffer<float3> BufferPosition : register(u4);
 
@@ -15,7 +10,7 @@ RWStructuredBuffer<float3> BufferPosition : register(u4);
 [numthreads(BLOCK_WIDTH, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	float index = DTid.x + DTid.y * BLOCK_WIDTH;
+	float index = DTid.x;
 	float length = RADIUS;
 
 	float4 color = float4(0.1f, 1.0f, 0.1f, 1.0f);

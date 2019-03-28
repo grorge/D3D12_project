@@ -2,20 +2,12 @@
 
 RWTexture2D<float4> textureOut : register(u7);
 
-struct BufTypeTrans
-{
-	float x, y, z;
-};
-
 RWStructuredBuffer<float3> BufferPosition : register(u2);
 
-#define BLOCK_WIDTH 256 * 8
-
-//[numthreads(BLOCK_WIDTH, 1, 1)]
 [numthreads(1, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	float index = DTid.x + DTid.y * BLOCK_WIDTH;
+	float index = DTid.x;
 	float length = RADIUS;
 
 	float4 color = index == 0 ?
@@ -25,14 +17,14 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	float2 pos = BufferPosition[index].xy;
 
 	unsigned int yMin = pos.y - length;
-	unsigned int yMax = pos.y + length + 1;
+	unsigned int yMax = pos.y + length;
 
 	unsigned int xMin = pos.x - length;
-	unsigned int xMax = pos.x + length + 1;
+	unsigned int xMax = pos.x + length;
 
-	for (unsigned int y = yMin; y < yMax; y++)
+	for (unsigned int y = yMin; y <= yMax; y++)
 	{
-		for (unsigned int x = xMin; x < xMax; x++)
+		for (unsigned int x = xMin; x <= xMax; x++)
 		{
 			if (distance(float2(x, y), pos) < length)
 			{

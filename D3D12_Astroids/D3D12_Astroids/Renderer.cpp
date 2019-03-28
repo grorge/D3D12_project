@@ -43,8 +43,6 @@ Renderer::~Renderer()
 		printToDebug("\n");
 	}
 
-
-	//this->WaitForGpu(m_computeCmdQueue());
 	WaitForCompute();
 
 	if (!RUN_SEQUENTIAL)
@@ -64,7 +62,6 @@ Renderer::~Renderer()
 	SafeRelease(&computeFence);
 	SafeRelease(&copyFence);
 
-	//SafeRelease(&renderTargetsHeap);
 	for (int i = 0; i < NUM_SWAP_BUFFERS; i++)
 	{
 		CloseHandle(eventHandle[i]);
@@ -96,10 +93,7 @@ void Renderer::joinThreads()
 		this->t_frame[i]->join();
 	}
 	this->t_copyData->detach();
-	//this->t_copyData->join();
 	this->t_update->detach();
-	
-	
 }
 
 void Renderer::init(HWND hwnd)
@@ -123,10 +117,7 @@ void Renderer::init(HWND hwnd)
 		this->copyTimer.init(this->device4, 16);
 	}
 
-	//this->WaitForGpu(m_graphicsCmdQueue());
 	WaitForGpu(0);
-	
-	//this->WaitForGpu(m_computeCmdQueue());
 	WaitForCompute();
 
 	//A quick sleep so that all resources are ready
@@ -144,11 +135,11 @@ void Renderer::startGame()
 	for (int i = 0; i < 256 * OBJECT_MULTIPLIER; i++)
 	{
 		positionData[i].trans[0] = SCREEN_WIDTH * ((float)rand() / (float)RAND_MAX); // x-value
-		positionData[i].trans[1] = SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX)/* * 100.0f - SCREEN_HEIGHT*/; // y-value
+		positionData[i].trans[1] = SCREEN_HEIGHT * ((float)rand() / (float)RAND_MAX); // y-value
 		positionData[i].trans[2] = 1.0f;
 		directionData[i].trans[0] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
 		directionData[i].trans[1] = 1.0f * (((float)rand() / (float)RAND_MAX) - 0.5f);
-		directionData[i].trans[2] = 0.7f/* * ((float)rand() / (float)RAND_MAX) + 1.0f*/;
+		directionData[i].trans[2] = 0.7f;
 	}
 
 	// Sets a default position for the player
@@ -170,6 +161,7 @@ void Renderer::startGame()
 		Bullet_directionData[i].trans[1] = -1.0f;
 		Bullet_directionData[i].trans[2] = 0.0f;
 	}
+
 	Bullet_positionData[0].trans[0] = 0.0f; // x-value
 	Bullet_positionData[0].trans[1] = 5.0f; // y-value
 	Bullet_positionData[0].trans[2] = 0.0f;
@@ -177,8 +169,6 @@ void Renderer::startGame()
 	m_copyCmdAllocator()->Reset();
 	m_copyCmdList()->Reset(m_copyCmdAllocator(), nullptr);
 
-	m_uavArray[0].UploadData(&data, m_copyCmdList(), sizeof(data));
-	//m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList(), sizeof(data));
 	m_uavArray[2].UploadData(&positionData, m_copyCmdList(), sizeof(positionData));
 	m_uavArray[3].UploadData(&directionData, m_copyCmdList(), sizeof(directionData));
 	m_uavArray[4].UploadData(&Bullet_positionData, m_copyCmdList(), sizeof(Bullet_positionData));
@@ -206,7 +196,6 @@ void Renderer::initThreads()
 	for (int i = 0; i < nrOfThreads; i++)
 	{
 		this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrame(i); }, this);
-	//	this->t_frame[i] = new std::thread([&](Renderer* rnd) { rnd->tm_runFrameDebug(i); }, this);
 		while (!this->threadCreated){} 		//Make sure that the thread initialized before proceeding.
 		this->threadCreated = false;		//Reset before the next loop.
 	}
@@ -229,8 +218,6 @@ void Renderer::tm_runFrame(const unsigned int iD)
 		{
 			myTurn[iD] = false;
 
-			//printToDebug("Entered loop: ", (int)iD);
-
 			//Reset before the new frame
 			m_graphicsCmdAllocator[iD]()->Reset();
 			m_graphicsCmdList[iD]()->Reset(m_graphicsCmdAllocator[iD](), nullptr);
@@ -252,29 +239,28 @@ void Renderer::tm_runFrame(const unsigned int iD)
 			handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + backBufferIndex);
 			handlePrev.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + prevIndex);
 
-			//Legacy stuff, could be done with only one. Kept so that we could clear another
-			//"backbuffers texture".
+			//Legacy stuff, could be done with only one. Kept so that we could change to clear another texture.
 			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle); 
 			m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handle);
 
 			if (RUN_TIME_STAMPS)
 			{
 
-				this->frameTimer.start(this->m_graphicsCmdList[iD](), 0); // Start frame timer
+				this->frameTimer.start(this->m_graphicsCmdList[iD](), 0);		// Start frame timer
 
 				this->frameTimer.start(this->m_graphicsCmdList[iD](), 1);
-				this->ClearTexture(m_graphicsCmdList[iD](), iD);				//Copy Translation  //REMOVE?
+				this->ClearTexture(m_graphicsCmdList[iD](), iD);				//Copy Translation  
 				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 1);
 
 				this->frameTimer.start(this->m_graphicsCmdList[iD](), 2);
-				this->DrawShaders(m_graphicsCmdList[iD]());				//Clear texture and draw
+				this->DrawShaders(m_graphicsCmdList[iD]());						//Clear texture and draw
 				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 2);
 
 				this->frameTimer.start(this->m_graphicsCmdList[iD](), 3);
-				this->CopyTexture(m_graphicsCmdList[iD]());					//Copy the new texture to the backbuffer
+				this->CopyTexture(m_graphicsCmdList[iD]());						//Copy the new texture to the backbuffer
 				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 3);
 
-				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 0); //Stop frame timer
+				this->frameTimer.stop(this->m_graphicsCmdList[iD](), 0);		//Stop frame timer
 
 
 				this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 0);
@@ -381,8 +367,6 @@ void Renderer::tm_runCS()
 			ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
 			m_computeCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 
-
-			// Set Root Argument, Index 1
 			m_computeCmdList()->SetComputeRootDescriptorTable(
 				0,
 				m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
@@ -428,7 +412,7 @@ void Renderer::tm_main()
 		this->logic = 0;
 		this->input = 0;
 		this->prevBackBuff = this->backBufferIndex;
-		//printToDebug("Presenting: ", this->prevBackBuff);
+
 		swapChain4->Present(0, 0);
 		this->backBufferIndex = this->swapChain4->GetCurrentBackBufferIndex();
 		this->myTurn[backBufferIndex] = true;
@@ -439,9 +423,7 @@ void Renderer::tm_main()
 		this->savedTime[this->savedSlot] = timeToPrint;
 		this->savedSlot++;
 		this->savedSlot = savedSlot % 64;
-		//printToDebug("\n");
-		//printToDebug((int)prev);
-		//printToDebug("	Frametime: ", timeToPrint);
+
 		cpuTimePrev = cpuTime; 
 		if (RUN_LOGICCOUNTER)
 		{
@@ -503,6 +485,8 @@ void Renderer::sequentialFrame()
 	if (RUN_TIME_STAMPS)
 		this->timerPrint();
 	/*************************END KEYBOARD**************************/
+
+
 	/*************************COMPUTE*******************************/
 	//Command list allocators can only be reset when the associated command lists have
 	//finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
@@ -515,8 +499,6 @@ void Renderer::sequentialFrame()
 	ID3D12DescriptorHeap* descriptorHeaps[] = { m_uavHeap.mp_descriptorHeap };
 	m_computeCmdList()->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 
-
-	// Set Root Argument, Index 1
 	m_computeCmdList()->SetComputeRootDescriptorTable(
 		0,
 		m_uavHeap.mp_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
@@ -550,9 +532,10 @@ void Renderer::sequentialFrame()
 	m_computeCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 	this->WaitForCompute();
 	/*******************************END COMPUTE****************************/
+
+
 	/*******************************RENDER*********************************/
 	int iD = swapChain4->GetCurrentBackBufferIndex();
-	//printToDebug("Entered loop: ", (int)iD);
 
 	//Reset before the new frame
 	m_graphicsCmdAllocator[iD]()->Reset();
@@ -574,30 +557,29 @@ void Renderer::sequentialFrame()
 		prevIndex = NUM_SWAP_BUFFERS - 1;
 	handle.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + backBufferIndex);
 	handlePrev.ptr += device4->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (NUM_UAV_BUFFERS + prevIndex);
-
-	//Legacy stuff, could be done with only one. Kept so that we could clear another
-	//"backbuffers texture".
+	
+	//Legacy stuff, could be done with only one. Kept so that we could change to clear another texture.
 	m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(1, handle);
 	m_graphicsCmdList[iD]()->SetComputeRootDescriptorTable(2, handle);
 
 	if (RUN_TIME_STAMPS)
 	{
 
-		this->frameTimer.start(this->m_graphicsCmdList[iD](), 0); // Start frame timer
+		this->frameTimer.start(this->m_graphicsCmdList[iD](), 0);	// Start frame timer
 
 		this->frameTimer.start(this->m_graphicsCmdList[iD](), 1);
-		this->ClearTexture(m_graphicsCmdList[iD](), iD);				//Copy Translation  //REMOVE?
+		this->ClearTexture(m_graphicsCmdList[iD](), iD);			//Copy Translation
 		this->frameTimer.stop(this->m_graphicsCmdList[iD](), 1);
 
 		this->frameTimer.start(this->m_graphicsCmdList[iD](), 2);
-		this->DrawShaders(m_graphicsCmdList[iD]());				//Clear texture and draw
+		this->DrawShaders(m_graphicsCmdList[iD]());					//Clear texture and draw
 		this->frameTimer.stop(this->m_graphicsCmdList[iD](), 2);
 
 		this->frameTimer.start(this->m_graphicsCmdList[iD](), 3);
 		this->CopyTexture(m_graphicsCmdList[iD]());					//Copy the new texture to the backbuffer
 		this->frameTimer.stop(this->m_graphicsCmdList[iD](), 3);
 
-		this->frameTimer.stop(this->m_graphicsCmdList[iD](), 0); //Stop frame timer
+		this->frameTimer.stop(this->m_graphicsCmdList[iD](), 0);	//Stop frame timer
 
 
 		this->frameTimer.resolveQueryToCPU(this->m_graphicsCmdList[iD](), 0);
@@ -626,7 +608,7 @@ void Renderer::sequentialFrame()
 	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute2), listsToExecute2);
 
 	this->prevBackBuff = this->backBufferIndex;
-	//printToDebug("Presenting: ", this->prevBackBuff);
+
 	swapChain4->Present(0, 0);
 	this->backBufferIndex = this->swapChain4->GetCurrentBackBufferIndex();
 	WaitForGpuMain(this->prevBackBuff);
@@ -636,9 +618,7 @@ void Renderer::sequentialFrame()
 	this->savedTime[this->savedSlot] = timeToPrint;
 	this->savedSlot++;
 	this->savedSlot %= 64;
-	//printToDebug("\n");
-	//printToDebug((int)prev);
-	//printToDebug("	Frametime: ", timeToPrint);
+
 	cpuTimePrev = cpuTime;
 	if (RUN_LOGICCOUNTER)
 	{
@@ -668,57 +648,40 @@ void Renderer::timerPrint()
 	float timeInMs = dt * timestampToMs;
 
 	printToDebug("___DRAW___	");
-	////printToDebug("\n");
-	//printToDebug("	FillList:	");
-	//printToDebug(timeInMs);
-	////printToDebug("\n");
+	printToDebug("	TTotal Time:	");
+	printToDebug(timeInMs);
 
-	//dt = timerCopyTran.Stop - timerCopyTran.Start;
-	//timeInMs = dt * timestampToMs;
-	//printToDebug("	Clear Texture:	");
-	//printToDebug(timeInMs);
-	////printToDebug("\n");
+	dt = timerCopyTran.Stop - timerCopyTran.Start;
+	timeInMs = dt * timestampToMs;
+	printToDebug("	Clear Texture:	");
+	printToDebug(timeInMs);
 
 	dt = timerDraw.Stop - timerDraw.Start;
 	timeInMs = dt * timestampToMs;
 	printToDebug("	Draw on texture:	");
 	printToDebug(timeInMs);
-	//printToDebug("\n");
 
-	//dt = timerCopyTex.Stop - timerCopyTex.Start;
-	//timeInMs = dt * timestampToMs;
-	//printToDebug("	Copy Texture:	");
-	//printToDebug(timeInMs);
-	////printToDebug("\n");
-
+	dt = timerCopyTex.Stop - timerCopyTex.Start;
+	timeInMs = dt * timestampToMs;
+	printToDebug("	Copy Texture:	");
+	printToDebug(timeInMs);
 
 	printToDebug("	___LOGIC___	");
-	//printToDebug("\n");
 	dt = timerTranslate.Stop - timerTranslate.Start;
 	timeInMs = dt * timestampToMs;
 	printToDebug("	Translation:	");
 	printToDebug(timeInMs);
-	//printToDebug("\n");
 
 	dt = timerCollsion.Stop - timerCollsion.Start;
 	timeInMs = dt * timestampToMs;
 	printToDebug("	Collison:	");
 	printToDebug(timeInMs);
-	//printToDebug("\n");
 
-	//dt = test.Stop - test.Start;
-	//timeInMs = dt * timestampToMs;
-	//printToDebug("	test:	");
-	//printToDebug(timeInMs);
-
-
-	//printToDebug("	___COPY___	");
-	////printToDebug("\n");
-	//dt = timerCopyQueue.Stop - timerCopyQueue.Start;
-	//timeInMs = dt * timestampToMs;
-	//printToDebug("	Copy queue:	");
-	//printToDebug(timeInMs);
-	////printToDebug("\n");
+	printToDebug("	___COPY___	");
+	dt = timerCopyQueue.Stop - timerCopyQueue.Start;
+	timeInMs = dt * timestampToMs;
+	printToDebug("	Copy queue:	");
+	printToDebug(timeInMs);
 
 	printToDebug("\n");
 }
@@ -749,7 +712,7 @@ void Renderer::SetResourceUavBarrier(ID3D12GraphicsCommandList* commandList, ID3
 
 void Renderer::WaitForGpu(const int iD)
 {
-//Signal and increment the fence value.
+	//Signal and increment the fence value.
 	const UINT64 fence = fenceValue;
 	this->m_graphicsCmdQueue()->Signal(this->fence[iD], fence);
 	fenceValue++;
@@ -764,7 +727,7 @@ void Renderer::WaitForGpu(const int iD)
 
 void Renderer::WaitForGpuMain(const int iD)
 {
-//Signal and increment the fence value.
+	//Signal and increment the fence value.
 	const UINT64 fence = fenceValue;
 	this->m_graphicsCmdQueue()->Signal(this->mainFence[iD], fence);
 	fenceValue++;
@@ -818,6 +781,7 @@ void Renderer::CreateDirect3DDevice()
 	//dxgi1_6 is only needed for the initialization process using the adapter.
 	IDXGIFactory6*	factory = nullptr;
 	IDXGIAdapter1*	adapter = nullptr;
+
 	//First a factory is created to iterate through the adapters available.
 	CreateDXGIFactory(IID_PPV_ARGS(&factory));
 	for (UINT adapterIndex = 0;; ++adapterIndex)
@@ -901,7 +865,6 @@ void Renderer::CreateCommandInterfacesAndSwapChain(HWND wndHandle)
 		m_graphicsCmdAllocator[i].Initialize(
 			device4,
 			D3D12_COMMAND_LIST_TYPE_DIRECT);
-		//m_graphicsCmdAllocator[i]()->SetName(L"graphics Allocator");
 
 
 		m_graphicsCmdList[i].Initialize(
@@ -966,8 +929,6 @@ void Renderer::CreateFenceAndEventHandle()
 	computeEventHandle = CreateEvent(0, false, false, 0);
 
 	fenceValue = 1;
-	//Create an event handle to use for GPU synchronization.
-	
 }
 
 void Renderer::CreateRenderTargets()
@@ -1125,7 +1086,7 @@ void Renderer::CreateUnorderedAccessResources()
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc3 = {};
 	desc3.Format = DXGI_FORMAT_UNKNOWN;
 	desc3.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-		
+
 	desc3.Buffer.FirstElement = 0;
 	desc3.Buffer.NumElements = 256 * OBJECT_MULTIPLIER;
 	desc3.Buffer.StructureByteStride = sizeof(float) * 3;
@@ -1136,15 +1097,18 @@ void Renderer::CreateUnorderedAccessResources()
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc4 = {};
 	desc4.Format = DXGI_FORMAT_UNKNOWN;
 	desc4.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+
 	desc4.Buffer.FirstElement = 0;
 	desc4.Buffer.NumElements = 128;
 	desc4.Buffer.StructureByteStride = sizeof(float) * 3;
 	desc4.Buffer.CounterOffsetInBytes = 0;
 	desc4.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
 	// Bullet direction buffer
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc5 = {};
 	desc5.Format = DXGI_FORMAT_UNKNOWN;
 	desc5.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+
 	desc5.Buffer.FirstElement = 0;
 	desc5.Buffer.NumElements = 128;
 	desc5.Buffer.StructureByteStride = sizeof(float) * 3;
@@ -1259,10 +1223,6 @@ void Renderer::KeyboardUpload()
 {
 	this->SetResourceUavBarrier(m_copyCmdList(), m_uavArray[1]());
 	m_uavArray[1].UploadData(this->keyboard->keyBoardInt, m_copyCmdList(), sizeof(this->keyboard->keyBoardInt));
-
-	// Dowload the position data from the GPU, this is to see the players state with the z-value
-	// We dowload alot but we only need 1 float, this is to stress the system
-	//m_uavArray[2].DownloadData(m_copyCmdList());
 }
 
 void Renderer::KeyboardShader()
@@ -1304,6 +1264,7 @@ void Renderer::DrawShaders(ID3D12GraphicsCommandList * cmdList)
 	//Draw astrooids
 	cmdList->SetPipelineState(m_computeStateDraw.mp_pipelineState);
 	cmdList->Dispatch(256 * OBJECT_MULTIPLIER, 1, 1);
+
 	//Draw bullets
 	cmdList->SetPipelineState(m_computeStateBullet.mp_pipelineState);
 	cmdList->Dispatch(1, 1, 1);
@@ -1314,7 +1275,7 @@ void Renderer::CopyTexture(ID3D12GraphicsCommandList* cmdList)
 {
 	SetResourceTransitionBarrier(cmdList,
 		renderTargets[backBufferIndex],
-		D3D12_RESOURCE_STATE_PRESENT,	//state before
+		D3D12_RESOURCE_STATE_PRESENT,		//state before
 		D3D12_RESOURCE_STATE_COPY_DEST		//state after
 	);
 
@@ -1336,6 +1297,7 @@ void Renderer::PresentFrame(ID3D12GraphicsCommandList* cmdList, const int iD)
 	cmdList->Close();
 
 	while (iD != swapChain4->GetCurrentBackBufferIndex()){}
+
 	//Execute the command list.
 	ID3D12CommandList* listsToExecute[] = { cmdList };
 	m_graphicsCmdQueue()->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);

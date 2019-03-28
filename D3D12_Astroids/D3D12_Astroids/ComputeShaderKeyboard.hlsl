@@ -9,10 +9,6 @@ struct BufTypeIntArray
 {
 	unsigned int arr[32];
 };
-struct BufTypeTrans
-{
-	float x, y, z;
-};
 
 RWStructuredBuffer<float4> BufferOut : register(u0);
 RWStructuredBuffer<BufTypeIntArray> BufferInKeyboard : register(u1);

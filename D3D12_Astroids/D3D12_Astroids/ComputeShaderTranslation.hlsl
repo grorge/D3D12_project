@@ -15,21 +15,27 @@ void main( uint3 DTid : SV_DispatchThreadID )
 {
 	if (DTid.x == 0)
 	{
-		float3 pos = BufferPosition[0];
-		float3 bullet = BufferBulletPosition[BufferBulletPosition[0].x];
+		float3 bulletHeader = BufferBulletPosition[0];
 
-		if (BufferBulletPosition[0].y == 1.0f && distance(pos.y, bullet.y) >= 100.0f)
+		float3 pos = BufferPosition[0];
+		float3 bullet = BufferBulletPosition[bulletHeader.x];
+
+		if (bulletHeader.y == 1.0f && distance(pos.y, bullet.y) >= 100.0f)
 		{
-			BufferBulletPosition[0].x %= 127;
-			BufferBulletPosition[0].x++;
-			BufferBulletDirection[BufferBulletPosition[0].x].z = 4.0f;
-			BufferBulletPosition[BufferBulletPosition[0].x] = pos;
+			bulletHeader.x %= 127;
+			bulletHeader.x++;
+
+			BufferBulletDirection[bulletHeader.x].z = 4.0f;
+			BufferBulletPosition[bulletHeader.x]	= pos;
+
+			BufferBulletPosition[0] = bulletHeader;
 		}
 	}
 
-	BufferPosition[DTid.x].x += BufferDirection[DTid.x].x * BufferDirection[DTid.x].z * SPEED;
-	BufferPosition[DTid.x].y += BufferDirection[DTid.x].y * BufferDirection[DTid.x].z * SPEED;
-	//BufferPosition[DTid.x].z += BufferDirection[DTid.x].z * BufferDirection[DTid.x].z;
+	float3 dir = BufferDirection[DTid.x];
+	float3 pos = BufferPosition[DTid.x];
 
-	
+	pos.xy += dir.xy * dir.z * SPEED;
+
+	BufferPosition[DTid.x] = pos;
 }
