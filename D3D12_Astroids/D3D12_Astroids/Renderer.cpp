@@ -305,7 +305,7 @@ void Renderer::tm_copy()
 {
 	while (this->running)
 	{
-		if (this->input < 2)
+		if (this->input < 1 || NO_LOGIC_LIMIT)
 		{
 			//Reset the Copy command allocator and command list for the next pass.
 			m_copyCmdAllocator()->Reset();
@@ -366,7 +366,7 @@ void Renderer::tm_runCS()
 {
 	while (this->running)
 	{
-		if (this->logic < 2)
+		if (this->logic < 1 || NO_LOGIC_LIMIT)
 		{
 			this->WaitForCompute();
 
@@ -1292,9 +1292,9 @@ void Renderer::Collision()
 void Renderer::ClearTexture(ID3D12GraphicsCommandList * cmdList, const int iD)
 {
 	// Clear Texture
-	cmdList->SetPipelineState(m_computeStateClear.mp_pipelineState);
-	cmdList->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
-	this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
+	//cmdList->SetPipelineState(m_computeStateClear.mp_pipelineState);
+	//cmdList->Dispatch(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
+	//this->SetResourceUavBarrier(m_graphicsCmdList[iD](), m_texture[iD]);
 }
 
 void Renderer::DrawShaders(ID3D12GraphicsCommandList * cmdList)

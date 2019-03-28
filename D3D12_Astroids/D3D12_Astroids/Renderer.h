@@ -31,6 +31,7 @@
 #define RUN_TIME_STAMPS false
 #define RUN_LOGICCOUNTER false
 #define RUN_SEQUENTIAL false
+#define NO_LOGIC_LIMIT false
 
 class Renderer
 {
